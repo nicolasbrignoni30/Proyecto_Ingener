@@ -6,7 +6,7 @@
 #include <mcp2515.h> // Esta en el platformio.ini
 
 
-#define LISTEN_INTERVAL_BMS  4900
+#define LISTEN_INTERVAL_BMS  5000
 // ---------------------------------------------------------------------------
 // Variables globales compartidas (Variables externas)
 // El main.cpp y el display.cpp van a poder leer estos valores frescos del CAN

@@ -10,10 +10,15 @@ bool firmwarePublicado = false;
 
 void setup() {
     Serial.begin(115200);
-    
-    // Inicializar hardware del inversor (ajustá los pines a tu placa)
-    // Supongamos que pasás el puerto Serial2 y el pin de Control de Dirección RS485
-    inverterInit(Serial2, 4); 
+    delay(500);
+
+    // Se inicializa el inversor.
+    Serial2.begin(RS485_BAUD, SERIAL_8N1, RS485_RX_PIN, RS485_TX_PIN);
+    inverterInit(Serial2, RS485_DE_RE_PIN); 
+
+    //Aca se ponen los 2kW en el registro 353 (setpoint).
+    //Se podria hacer en 'inverterInit' pero aca queda mas explicito.
+    inverterWrite(REG_SET_POWER, SET_POWER_RAW);
 
     // Inicializar redes
     connectWiFi();
@@ -21,7 +26,6 @@ void setup() {
 
     Serial.println("[MAIN] Sistema inicializado correctamente.");
 }
-
 
 unsigned long lastPublishInv = 0;
 
@@ -31,7 +35,7 @@ void loop() {
         loopMQTT(); // Adentro corre client.loop()
     }
 
-    // 1. LEER Y MANDAR FIRMWARE (Una sola vez al arrancar y tener red)
+    // Leer y mandar firmware una sola vez.
     if (!firmwarePublicado) {
         Serial.println("[MAIN] Leyendo versión de firmware por única vez...");
         
@@ -45,7 +49,7 @@ void loop() {
     }
 
     
-    // 2. POLLING Y TELEMETRÍA DINÁMICA (Cada intervalo de tiempo)
+    //polling y telemetria.
         if (millis() - lastPublishInv >= PUBLISH_INTERVAL_INV) {
             lastPublishInv = millis();
 

@@ -7,12 +7,12 @@
 
 
 // Variables necesarias para crear el paquete
-//can_frame canMsgTx;
+can_frame canMsgTx;
 can_frame canMsgRx;
 
-//canid_t id = 0x4200;
-//__u8 dlc = 8;
-//__u8 data[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+canid_t id = 0x00004200;
+__u8 dlc = 8;
+__u8 data[8] = {0, 0, 0, 0, 0, 0, 0, 0};
 
 byte sndStat = 0;
 BmsData bms;
@@ -35,8 +35,7 @@ void setup() {
     connectWiFi();
     connectMQTT();
 
-    //mkMsg(id, data, dlc, &canMsgTx);
-    //Serial.print("Se mando el 0x4200 para perdirle datos al BMS");
+    mkMsg(id, data, dlc, &canMsgTx);
 }
 
 bool listening = true;
@@ -46,7 +45,7 @@ unsigned long lastPublishBms = 0;
 unsigned long lastListenBms = 0;
 
 uint8_t contador_frames = 0;
-const uint8_t num_frames = 11; //Tengo entendido que el BMS va a mandar 10 frames, algunos de los cuales no nos interesan.
+const uint8_t num_frames = 3; //Tengo entendido que el BMS va a mandar 10 frames, algunos de los cuales no nos interesan.
 
 void loop() {
     // 1. MANTENER VIVO EL PROTOCOLO MQTT (Ejecutarlo siempre para no perder la sesión)
@@ -61,7 +60,7 @@ void loop() {
         limpiarBuffers_Rx(); //Por las dudas se limpian los buffers de recepcion del MCP2515.
 
         // Se manda la trama 0x4200 para leer el BMS 
-        //sndStat = bmsSend(&canMsgTx);
+        sndStat = bmsSend(&canMsgTx);
         while (contador_frames < num_frames) {
             flag_recibido = bmsReceive(&canMsgRx, listening);
             if (flag_recibido) {

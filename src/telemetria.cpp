@@ -89,7 +89,6 @@ void publishTelemetryInv(const InvData& inv, const std::string& campo) {
         doc["load_s_kva"]= inv.load.s_total;
 #endif
     } else if (campo == "FirmData") {
-        doc["fw_model"]        = inv.firm.fw_model;
         doc["fw_hw_version"]   = inv.firm.fw_hw_version;
         doc["fw_dsp_version"]  = inv.firm.fw_dsp_version;
         doc["fw_com_version"]  = inv.firm.fw_com_version;

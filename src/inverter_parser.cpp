@@ -77,33 +77,3 @@ void inverter_parse_load(const int16_t* r, LoadData& o) {
     o.p_total = r[13] * SCALE_POWER_KW;
     o.s_total = r[14] * SCALE_APPARENT_KVA;
 }
-
-const InitCmd* inverter_init_sequence(uint8_t* count_out) {
-    static const InitCmd seq[] = {
-        // Hardware limits
-        { REG_DC_MAX_DISCHG_CURRENT, 1500, "Max DC discharge = 150A"         },
-        { REG_DC_MAX_CHG_CURRENT,    1500, "Max DC charge = 150A"             },
-        // Operating mode — on-grid, no PV, no self-use
-        { REG_ANTI_BACKFLOW,            0, "Self-use OFF (on-grid mode)"      },
-        { REG_GRID_SCHED_MODE,          0, "AC side constant power (reg 758)" },
-        { REG_3PHASE_CTRL_MODE,         1, "3-phase independent control"      },
-        { REG_PV_SWITCH,                0, "PV OFF"                           },
-        { REG_LEAKAGE_DETECT,           0, "Leakage detect OFF"               },
-        { REG_DCDC_SWITCH,              0, "DCDC OFF"                         },
-        // Setpoint to zero before power-on
-        { REG_SET_POWER,                0, "Setpoint = 0 kW"                  },
-        // Power on last
-        { REG_POWER_ON,                 1, "Power ON"                         },
-    };
-    *count_out = sizeof(seq) / sizeof(seq[0]);
-    return seq;
-}
-
-bool inverter_run_init(WriteRegFn write_fn, ReadRegFn read_fn) {
-    uint8_t count;
-    const InitCmd* seq = inverter_init_sequence(&count);
-    bool ok = true;
-    for (uint8_t i = 0; i < count; i++)
-        ok &= write_fn(seq[i].reg, seq[i].val);
-    return ok;
-}

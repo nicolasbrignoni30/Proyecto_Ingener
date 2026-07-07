@@ -19,7 +19,7 @@
 #define REG_FUNCTION_MGMT          873   // bit0=anti-backflow/self-use. EMS oficial usa 873=1 + reg 353
 #define REG_ANTI_BACKFLOW          873   // alias
 #define REG_GRID_SCHED_MODE        758   // 0=AC constant power. Necesario para reg 135 (estrategia B)
-#define REG_SET_POWER              135   // active power setpoint. +kW=discharge, -kW=charge. precision 0.1kW. Estrategia B
+#define REG_SET_POWER              353   // active power setpoint. +kW=discharge, -kW=charge. precision 0.1kW. Estrategia B
 
 // Decoded AC measurements (registers 100–125)
 struct AcData {
@@ -71,7 +71,6 @@ struct StatusData {
 };
 
 struct FirmData {
-    uint32_t fw_model;
     uint32_t fw_hw_version;
     uint32_t fw_dsp_version;
     uint32_t fw_com_version;
@@ -88,16 +87,6 @@ struct InvData {
     FirmData   firm;
 };
 
-// Init sequence entry — one register write
-struct InitCmd {
-    uint16_t    reg;
-    int16_t     val;
-    const char* name;
-};
-
-// Function pointer types for hardware-independent init
-typedef bool (*WriteRegFn)(uint16_t reg, int16_t value);
-typedef bool (*ReadRegFn)(uint16_t reg, uint16_t count, int16_t* out);
 
 // Parse raw registers from readRegisters() into typed structs.
 // raw[] must have at least the count passed to readRegisters().
@@ -106,10 +95,3 @@ void inverter_parse_dc    (const int16_t* raw, DcData&     out);
 void inverter_parse_grid  (const int16_t* raw, int16_t grid_p_raw, GridData& out);
 void inverter_parse_load  (const int16_t* raw, LoadData&   out);
 void inverter_parse_status(const int16_t* raw, StatusData& out);
-
-// Returns the standard init sequence and its length.
-const InitCmd* inverter_init_sequence(uint8_t* count_out);
-
-// Run the full init sequence using the provided read/write functions.
-// Returns true if all writes succeeded.
-bool inverter_run_init(WriteRegFn write_fn, ReadRegFn read_fn);
