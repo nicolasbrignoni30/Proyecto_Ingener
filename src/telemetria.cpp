@@ -102,6 +102,7 @@ void publishTelemetryInv(const InvData& inv, const std::string& campo) {
     if (campoValido) {
         char payload[512];
         serializeJson(doc, payload, sizeof(payload));
+        Serial.println("telemtria enviada");
         mqtt.publish("v1/devices/me/telemetry", payload);
     }
 }
@@ -133,6 +134,8 @@ void publishTelemetryBMS(const BmsData& datosBms){
     //Estos corresponden al 0x424x
     doc["temp_cell_max_c"] = datosBms.temp_cell_max_c;
     doc["temp_cell_min_c"] = datosBms.temp_cell_min_c;
+    doc["battery_cell_temp_num_max"] = datosBms.battery_cell_temp_num_max;
+    doc["battery_cell_temp_num_min"] = datosBms.battery_cell_temp_num_min;
 
     //Estos corresponden al 0x425x
     doc["fault"] = datosBms.fault;

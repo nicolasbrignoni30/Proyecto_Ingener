@@ -45,7 +45,7 @@ unsigned long lastPublishBms = 0;
 unsigned long lastListenBms = 0;
 
 uint8_t contador_frames = 0;
-const uint8_t num_frames = 3; //Tengo entendido que el BMS va a mandar 10 frames, algunos de los cuales no nos interesan.
+const uint8_t num_frames = 11; //Tengo entendido que el BMS va a mandar 10 frames, algunos de los cuales no nos interesan.
 
 void loop() {
     // 1. MANTENER VIVO EL PROTOCOLO MQTT (Ejecutarlo siempre para no perder la sesión)

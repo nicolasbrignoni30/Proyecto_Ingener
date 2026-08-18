@@ -18,7 +18,7 @@ void setup() {
 
     //Aca se ponen los 2kW en el registro 353 (setpoint).
     //Se podria hacer en 'inverterInit' pero aca queda mas explicito.
-    inverterWrite(REG_SET_POWER, SET_POWER_RAW);
+    //inverterWrite(REG_SET_POWER, SET_POWER_RAW);
 
     // Inicializar redes
     connectWiFi();
@@ -35,18 +35,17 @@ void loop() {
         loopMQTT(); // Adentro corre client.loop()
     }
 
-    // Leer y mandar firmware una sola vez.
-    if (!firmwarePublicado) {
-        Serial.println("[MAIN] Leyendo versión de firmware por única vez...");
+    //if (!firmwarePublicado) {
+        //Serial.println("[MAIN] Leyendo versión de firmware por única vez...");
         
         // Pasamos inv.firm directamente (la subestructura interna)
-        readFirmwareVersion(inv.firm); 
+        //readFirmwareVersion(inv.firm); 
         
         // Publicamos usando tu método por strings
-        publishTelemetryInv(inv, "Firm");
+        //publishTelemetryInv(inv, "FirmData");
         
-        firmwarePublicado = true; // Bloqueamos para que no vuelva a entrar
-    }
+        //firmwarePublicado = true; // Bloqueamos para que no vuelva a entrar
+    //}
 
     
     //polling y telemetria.

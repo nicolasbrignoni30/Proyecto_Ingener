@@ -28,6 +28,9 @@ static ModbusMaster inv;
 
 static uint8_t _deRePin;
 
+//Estas funciones se pasan como parametro en la inicializacion.
+//De esta manera la biblioteca de modbusmaster saber que hacer antes y despues de transmitir.
+
 static void preTransmission()  { digitalWrite(_deRePin, HIGH); }
 static void postTransmission() { digitalWrite(_deRePin, LOW);  }
 
@@ -84,17 +87,17 @@ bool inverterWrite(uint16_t reg, int16_t value) {
 const InitCmd* inverter_init_sequence(uint8_t* count_out) {
     static const InitCmd seq[] = {
         // Hardware limits
-        { REG_DC_MAX_DISCHG_CURRENT, 1500, "Max DC discharge = 150A"         },
-        { REG_DC_MAX_CHG_CURRENT,    1500, "Max DC charge = 150A"             },
+        { REG_DC_MAX_DISCHG_CURRENT, 1500, "Max DC discharge = 100A"      },
+        { REG_DC_MAX_CHG_CURRENT,   1500 , "Max DC charge = 20"           },
         // Operating mode — on-grid, no PV, no self-use
-        { REG_ANTI_BACKFLOW,            0, "Self-use OFF (on-grid mode)"      },
+        { REG_ANTI_BACKFLOW,            1, "Self-use OFF (on-grid mode)"      },
         { REG_GRID_SCHED_MODE,          0, "AC side constant power (reg 758)" },
         { REG_3PHASE_CTRL_MODE,         1, "3-phase independent control"      },
         { REG_PV_SWITCH,                0, "PV OFF"                           },
         { REG_LEAKAGE_DETECT,           0, "Leakage detect OFF"               },
         { REG_DCDC_SWITCH,              0, "DCDC OFF"                         },
         // Setpoint to zero before power-on
-        { REG_SET_POWER,                0, "Setpoint = 0 kW"                  },
+        { REG_SET_POWER,                SET_POWER_RAW, "Setpoint = -- kW"     },
         // Power on last
         { REG_POWER_ON,                 1, "Power ON"                         },
     };
@@ -157,13 +160,14 @@ void readFirmwareVersion(FirmData& firm) {
 void verifyAndReinit() {
     static const InitCmd cfg[] = {
         { 763, 1500, "Max DC discharge"         },
-        { 764, 1500, "Max DC charge"            },
+        { 764, 0, "Max DC charge"            },
         { 341,    1, "3-phase ctrl"             },
         { 652,    0, "PV switch"                },
         { 795,    0, "Leakage detect"           },
         { 656,    0, "DCDC switch"              },
-        { 873,    0, "Function mgmt (on-grid)"  },
+        { 873,    1, "Function mgmt (on-grid)"  },
         { 758,    0, "Grid sched mode (AC pwr)" },
+        { 650,    1, "power ON"},
     };
     bool anyFixed = false;
     for (const InitCmd& c : cfg) {

@@ -62,11 +62,19 @@ void bms_parse_can(uint16_t base, const __u8* data, BmsData& bms) {
         case 0x4240:
             // --- Max Single Battery Cell Voltage ---
             raw_value = (data[1] << 8) | data[0];
-            bms.cell_voltage_max_v = (raw_value * 0.1f) - 100.0f;
+            bms.temp_cell_max_c = (raw_value * 0.1f) - 100.0f;
 
             // --- Min Single Battery Cell Voltage ---
             raw_value = (data[3] << 8) | data[2];
-            bms.cell_voltage_min_v = (raw_value * 0.1f) - 100.0f;   
+            bms.temp_cell_min_c = (raw_value * 0.1f) - 100.0f; 
+            
+            // --- Battery Cell Temperature Position Max. ---
+            raw_value = (data[5] << 8) | data[4];
+            bms.battery_cell_temp_num_max = (float)raw_value;
+
+            // --- Battery Cell Temperature Position Min. ---
+            raw_value = (data[7] << 8) | data[6];
+            bms.battery_cell_temp_num_min = (float)raw_value;
             break;
 
         case 0x4250:

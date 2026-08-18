@@ -30,6 +30,7 @@
 // Pines del Módulo CAN MCP2515
 #define CAN_CS    15   // Pin Chip Select exclusivo para el MCP2515
 #define CAN_INT   22   // Pin de Interrupción para que el MCP2515 te avise de datos nuevos
+// Los demas pines como MOSI (23), MISO (19), y SCK (18) estan definidos por defecto.
 
 // =============================================================================
 // Pines para la pantalla TFT 1.8" SPI ST7735 
@@ -68,3 +69,29 @@
 #define REG_LOAD_COUNT              14
 #define REG_VERSION_START            0
 #define REG_VERSION_COUNT           22
+
+
+// ---------------------------------------------------------------------------
+// Control térmico de baterías — ventiladores y heating plates
+// ---------------------------------------------------------------------------
+// Relé de ventiladores — un GPIO controla los 4 ventiladores juntos 
+#define FAN_RELAY_PIN         14
+ 
+// Relé de heating plates — un GPIO controla ambas plaquetas juntas
+#define HEATING_RELAY_PIN     12
+ 
+// Umbrales de temperatura (°C), sobre temp_cell_min_c / temp_cell_max_c del BMS
+#define TEMP_HEAT_ON_C         5.0f   // por debajo: hace falta calentar
+#define TEMP_COOL_ON_C        45.0f   // por encima: hace falta enfriar
+#define TEMP_COOL_OFF_C       40.0f   // histéresis: se apagan ventiladores por debajo de esto
+#define TEMP_CRITICAL_C       60.0f   // límite de seguridad absoluto — fuerza ventiladores en cualquier estado
+ 
+// Ciclo de calentamiento (estado HEATING)
+#define HEATING_ON_MIN      1     // minutos prendida la heating plate por ciclo
+#define HEATING_OFF_MIN     2     // minutos apagada por ciclo
+#define HEATING_TOTAL_MIN  30     // minutos totales del estado HEATING
+
+#define HEATING_ON_MS       (HEATING_ON_MIN    * 60UL * 1000UL)
+#define HEATING_OFF_MS      (HEATING_OFF_MIN   * 60UL * 1000UL)
+#define HEATING_TOTAL_MS    (HEATING_TOTAL_MIN * 60UL * 1000UL)
+ 

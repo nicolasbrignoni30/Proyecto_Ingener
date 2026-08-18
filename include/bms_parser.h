@@ -21,6 +21,8 @@ struct BmsData {
     float    temp_avg_c;          // average cell temperature (°C)
     float    temp_cell_max_c;     // max cell temperature (°C)
     float    temp_cell_min_c;     // min cell temperature (°C)
+    float    battery_cell_temp_num_max;
+    float    battery_cell_temp_num_min;
     float    temp_fet_c;          // FET temperature (°C)
 
     // — Cell voltages —
