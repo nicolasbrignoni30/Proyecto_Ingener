@@ -136,12 +136,32 @@ void limpiarBuffers_Rx() {
         uint8_t flags = mcp2515.getErrorFlags();
         Serial.print("Registro EFLG (Código de error): 0x");
         Serial.println(flags, HEX);
-        
-        // Limpiamos el overflow para desbloquear la recepción
-        mcp2515.clearRXnOVR();
-        
-        // Purgamos los buffers viejos borrando las banderas de interrupción
-        mcp2515.clearInterrupts();
-        Serial.println("-> Overflow y buffers reiniciados con éxito.");
-    }    
+    }
+    // Limpiamos el overflow para desbloquear la recepción
+    mcp2515.clearRXnOVR();
+    
+    // Purgamos los buffers viejos borrando las banderas de interrupción
+    mcp2515.clearInterrupts();
+}
+
+bool bmsReceiveBatchBlocking(can_frame* ptr_msg, uint8_t num_frames, unsigned long timeout_ms, void (*onFrame)(can_frame*)) {
+    limpiarBuffers_Rx();
+ 
+    unsigned long inicio = millis();
+    uint8_t contador = 0;
+ 
+    while (contador < num_frames) {
+        if (bmsReceive(ptr_msg, /*listening=*/true)) {
+            onFrame(ptr_msg);
+            contador++;
+        }
+ 
+        if (millis() - inicio >= timeout_ms) {
+            Serial.print("Timeout");
+            return false; // timeout de seguridad, lote incompleto
+            
+        }
+    }
+ 
+    return true;
 }

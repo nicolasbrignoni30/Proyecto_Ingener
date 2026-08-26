@@ -160,7 +160,7 @@ void readFirmwareVersion(FirmData& firm) {
 void verifyAndReinit() {
     static const InitCmd cfg[] = {
         { 763, 1500, "Max DC discharge"         },
-        { 764, 0, "Max DC charge"            },
+        { 764, 1500, "Max DC charge"            },
         { 341,    1, "3-phase ctrl"             },
         { 652,    0, "PV switch"                },
         { 795,    0, "Leakage detect"           },

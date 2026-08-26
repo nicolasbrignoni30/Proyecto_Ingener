@@ -32,6 +32,9 @@
 #define CAN_INT   22   // Pin de Interrupción para que el MCP2515 te avise de datos nuevos
 // Los demas pines como MOSI (23), MISO (19), y SCK (18) estan definidos por defecto.
 
+// pin para el sensor de temperatura y humedad
+#define DHT_PIN 33 
+
 // =============================================================================
 // Pines para la pantalla TFT 1.8" SPI ST7735 
 // =============================================================================
@@ -49,7 +52,6 @@
 
 // Intervalos de polling (ms)
 #define POLL_MODBUS_MS   5000
-#define POLL_BMS_MS      2000
 #define PUBLISH_MS       10000
 #define VERIFY_INIT_MS   60000
 
@@ -74,24 +76,38 @@
 // ---------------------------------------------------------------------------
 // Control térmico de baterías — ventiladores y heating plates
 // ---------------------------------------------------------------------------
-// Relé de ventiladores — un GPIO controla los 4 ventiladores juntos 
+// Relé de ventiladores — un GPIO controla los 4 ventiladores juntos (circuito ya validado)
 #define FAN_RELAY_PIN         14
  
-// Relé de heating plates — un GPIO controla ambas plaquetas juntas
+// Relé(s) de heating plates — un GPIO controla ambas plaquetas juntas
+// TODO: confirmar si es realmente un solo pin para las dos, o hace falta un
+// segundo GPIO porque a veces se controlan por separado.
 #define HEATING_RELAY_PIN     12
  
-// Umbrales de temperatura (°C), sobre temp_cell_min_c / temp_cell_max_c del BMS
-#define TEMP_HEAT_ON_C         5.0f   // por debajo: hace falta calentar
-#define TEMP_COOL_ON_C        45.0f   // por encima: hace falta enfriar
-#define TEMP_COOL_OFF_C       40.0f   // histéresis: se apagan ventiladores por debajo de esto
-#define TEMP_CRITICAL_C       60.0f   // límite de seguridad absoluto — fuerza ventiladores en cualquier estado
+// Umbrales de temperatura (°C), para el HEATING
+#define TEMP_HEAT_ENTER_C     10.0f   // T_UMBRAL_1 — T_min por debajo de esto: entra a HEATING
+#define TEMP_HEAT_EXIT_C      20.0f   // T_UMBRAL_4 — T_min por encima de esto: sale de HEATING a MONITOR
+#define TEMP_PLATE_MAX_C      50.0f   // T_UMBRAL_2 — T_max por encima de esto: corta la fase ON antes de tiempo
+#define TEMP_PLATE_HYSTERESIS_C 15.0f  // delta — separación para el umbral de reanudar la fase ON
+#define TEMP_PLATE_RESUME_C   (TEMP_PLATE_MAX_C - TEMP_PLATE_HYSTERESIS_C)  // T_UMBRAL_3
+
+// Umbrales de temperatura (°C), para el COOLING 
+ 
+#define TEMP_COOL_ON_C        40.0f   // por encima: hace falta enfriar
+#define TEMP_COOL_OFF_C       30.0f   // histéresis: se apagan ventiladores por debajo de esto
+#define TEMP_COOL_POT         55.0f   // limite a partir del cual se reduce la potencia
+#define TEMP_CRITICAL_C       60.0f   // límite de seguridad absoluto - Se apaga el sistema
+
+// Si hace falta se pueden considerar timeouts pero hay que estudiarlos con cuidado
  
 // Ciclo de calentamiento (estado HEATING)
-#define HEATING_ON_MIN      1     // minutos prendida la heating plate por ciclo
-#define HEATING_OFF_MIN     2     // minutos apagada por ciclo
-#define HEATING_TOTAL_MIN  30     // minutos totales del estado HEATING
-
-#define HEATING_ON_MS       (HEATING_ON_MIN    * 60UL * 1000UL)
-#define HEATING_OFF_MS      (HEATING_OFF_MIN   * 60UL * 1000UL)
-#define HEATING_TOTAL_MS    (HEATING_TOTAL_MIN * 60UL * 1000UL)
+#define HEATING_ON_MIN          1     // minutos máx. de la fase ON por ciclo
+#define HEATING_OFF_MIN         2     // minutos mín. de la fase OFF por ciclo
+#define HEATING_TIMEOUT_MIN    10     // timeout de seguridad: tiempo máx. total en HEATING
+                                       // (por si T_min nunca sube por falla de sensor u otra causa)
+ 
+#define HEATING_ON_MS        (HEATING_ON_MIN     * 60UL * 1000UL)
+#define HEATING_OFF_MS       (HEATING_OFF_MIN    * 60UL * 1000UL)
+#define HEATING_TIMEOUT_MS   (HEATING_TIMEOUT_MIN * 60UL * 1000UL)
+ 
  

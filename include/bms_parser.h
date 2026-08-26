@@ -1,8 +1,9 @@
 #pragma once
 
-#include "bms_can.h"
 #include <stdint.h>
 #include <stdbool.h>
+#include <mcp2515.h> //Esta biblioteca ya esta en bms_can.h pero se pone aca tambien por el __u8, capaz no es lo mas prolijo, no se
+
 
 struct BmsData {
     // — Electrical —
@@ -42,7 +43,7 @@ struct BmsData {
     uint16_t protection;          // protection word
     uint8_t  soe_pct;             // State of Energy % (Pylontech CAN only, 0 if unavailable)
 
-    bool     valid;               // true once successfully parsed
+    //bool     valid;               // true once successfully parsed
 };
 
 

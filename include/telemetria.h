@@ -44,6 +44,7 @@ void connectMQTT();
 void loopMQTT();
 void publishTelemetryBMS(const BmsData& datosBms);
 void publishTelemetryInv(const InvData& inv, const std::string& campo);
+void publishTemperature(const float temp, bool bajar_pot, bool shut_down);
 void updateSim(Sim& sim);
 void publishTelemetrySim(const Sim& data);
 

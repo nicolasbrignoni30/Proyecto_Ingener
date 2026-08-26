@@ -102,8 +102,11 @@ void publishTelemetryInv(const InvData& inv, const std::string& campo) {
     if (campoValido) {
         char payload[512];
         serializeJson(doc, payload, sizeof(payload));
-        Serial.println("telemtria enviada");
-        mqtt.publish("v1/devices/me/telemetry", payload);
+        Serial.printf("[MQTT] Payload %d bytes\n", strlen(payload));
+        bool ok = mqtt.publish("v1/devices/me/telemetry", payload);
+        if (!ok) {
+            Serial.println("[MQTT] Inv Publish failed");
+        }
     }
 }
 
@@ -160,8 +163,31 @@ void publishTelemetryBMS(const BmsData& datosBms){
     serializeJson(doc, payload, sizeof(payload));
     Serial.printf("[MQTT] Payload %d bytes\n", strlen(payload));
     bool ok = mqtt.publish("v1/devices/me/telemetry", payload);
+    if (!ok) {
+        Serial.println("[MQTT] BMS Publish failed");
+    }
 }
 
+
+//####################################################################
+// Esto es para avisarle a thingboard el valor de temperatura ambiente
+//####################################################################
+
+void publishTemperature(const float temp, bool bajar_pot, bool shut_down){
+    JsonDocument doc;
+    doc["T_Amb"] = temp;
+    doc["reducir_pot_temp"] = bajar_pot;
+    doc["safe_mode"] = shut_down; // Aca safe mode seria apagar todo como dijo el Seba.
+
+    char payload[128]; // margen holgado
+    size_t len = serializeJson(doc, payload, sizeof(payload));
+
+    Serial.printf("[MQTT] Payload %d bytes\n", len);
+    bool ok = mqtt.publish("v1/devices/me/telemetry", payload);
+    if (!ok) {
+        Serial.println("[MQTT] Publish failed");
+    }
+}
 
 //#######################################################################
 // Las funciones de aca abajo son para datos simulados, se usan en test_tb

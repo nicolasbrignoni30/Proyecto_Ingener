@@ -29,7 +29,7 @@ void bmsCanInit(ModoFuncionamiento modo);                     // Inicializa el M
 void mkMsg(canid_t ID, __u8* bytes, __u8 length, can_frame* ptr_msg);
 byte bmsSend(can_frame* ptr_msg);
 bool bmsReceive(can_frame* ptr_msg, bool listening);
-void imprimir_0x421();
 void imprimirRx(can_frame* ptr_msg);
 bool procesarEntradaTeclado(String entrada, canid_t &idOut, __u8 *datosOut, __u8 &largoOut);
 void limpiarBuffers_Rx();
+bool bmsReceiveBatchBlocking(can_frame* ptr_msg, uint8_t num_frames, unsigned long timeout_ms, void (*onFrame)(can_frame*));

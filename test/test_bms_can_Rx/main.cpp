@@ -25,35 +25,13 @@ void setup() {
     Serial.println("--------------------------------------------------");
 }
 
-//can_frame canMsgTx;
 can_frame canMsgRx;
-bool flag_recibido = false;
-bool listening = true;
-uint8_t num_frames = 9;
-uint8_t contador_frames = 0;
 
-unsigned long tiempo_anterior = 0;
-
+void imprimirFrame(can_frame* ptr_msg){
+    uint16_t id = (uint16_t)((*ptr_msg).can_id);
+    Serial.println(id, HEX);
+}
 
 void loop() {
-    //limpiarBuffers_Rx();
-    flag_recibido = bmsReceive(&canMsgRx, listening);
-    if (flag_recibido){
-        Serial.println(canMsgRx.can_id, HEX);
-        flag_recibido = false;
-        contador_frames = contador_frames+1;
-    }
-    listening = !(contador_frames >= num_frames);
-
-    // Este if lo que hace es volver a escuchar al cabo de 10 segundo. Se puede sacar y para volver a escuchar se hace reset.
-    if (millis() - tiempo_anterior > 7000){
-        Serial.println("check");
-        for (int i=0; i<num_frames; i++){
-            Serial.println(canMsgRx.data[i], HEX);
-        }
-        listening = true;
-        contador_frames = 0;
-        tiempo_anterior = millis();
-        limpiarBuffers_Rx(); 
-    }
+    bmsReceiveBatchBlocking(&canMsgRx, 9, 1500, imprimirFrame);
 }
