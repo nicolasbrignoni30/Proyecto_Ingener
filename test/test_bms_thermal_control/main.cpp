@@ -1,7 +1,7 @@
 // mainMCP2515.cpp
 #include <Arduino.h>
-#include <SPI.h>       // Infraestructura global de bus compartida
-#include "bms_can.h"   // Tu módulo de CAN corregido
+#include <SPI.h>     
+#include "bms_can.h"   
 #include "bms_parser.h"
 #include "thermal_control.h"
 #include "telemetria.h"
@@ -48,6 +48,9 @@ void setup() {
     connectWiFi();
     connectMQTT();
     dhtInit(DHT_PIN);
+    // Es importante hacer el 'Serial2.begin' para configurar el puerto UART fisico digamos
+    Serial2.begin(RS485_BAUD, SERIAL_8N1, RS485_RX_PIN, RS485_TX_PIN);  // 1º: levanta el UART físico
+    inverter_init_defaults(Serial2, RS485_DE_RE_PIN); 
 
     Serial.println("[MAIN] Setup finalizado con éxito. Corriendo lazo...");
     Serial.println("--------------------------------------------------");
@@ -68,14 +71,13 @@ void sendCoolingState(float T, bool b1, bool b2){
 }
 
 void loop() {
-    bmsReceiveBatchBlocking(&canMsgRx, 9, 5500/*1500*/, parser);
+    bmsReceiveBatchBlocking(&canMsgRx, 9,/*Ahora esta en 5500 por la prueba*/ 5500/*1500*/, parser);
     d = dhtRead();
     if (millis() > 7000){
         temp = 65.0;
     }
     if (thermalControlUpdate(millis(), bms.temp_cell_min_c, bms.temp_cell_max_c, temp/*d.temperature_c*/, sendCoolingState)){
         inverterWrite(REG_SHUTDOWN, 1);
-        Serial.println("Efectivamente paso por aca y le pidio al inv que se apague");
     }
     imprimirEstado(millis(), temp/*d.temperature_c*/, bms);
 }

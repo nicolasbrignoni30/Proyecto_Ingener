@@ -5,8 +5,6 @@
 #include "inverter_parser.h"
 #include "inverter_scales.h"
 
-#define SET_POWER_KW      -2.0f
-#define SET_POWER_RAW     ((int16_t)(SET_POWER_KW / SCALE_SET_POWER_KW))
 
 //Registros 
 #define REG_DC_MAX_DISCHG_CURRENT  763
@@ -22,6 +20,23 @@
 #define REG_GRID_SCHED_MODE        758   
 #define REG_SET_POWER              353 
 
+// Estos registros estaban en el config.h y me los traje para aca para que quede mas prolijo
+// No se si todos se usan y algunos son de la version V3.0.
+// Lectura
+#define REG_STATUS                  32
+#define REG_STATUS_COUNT             1
+#define REG_AC_START               100
+#define REG_AC_COUNT                26
+#define REG_DC_START               141
+#define REG_DC_COUNT                 3
+#define REG_GRID_START             170
+#define REG_GRID_COUNT              10
+#define REG_GRID_POWER             192
+#define REG_LOAD_START             200
+#define REG_LOAD_COUNT              14
+#define REG_VERSION_START            0
+#define REG_VERSION_COUNT           22
+
 
 struct InitCmd {
     uint16_t    reg;
@@ -29,13 +44,28 @@ struct InitCmd {
     const char* name;
 };
 
+struct inverterValues{
+    float   dc_max_dischg_current;
+    float   dc_max_chg_current;
+    int16_t anti_backflow_value;
+    int16_t grid_sched_mode_value;
+    int16_t three_phase_ctrl_mode_value;
+    int16_t pv_switch_value;
+    int16_t leakage_detect_value;
+    int16_t dcdc_switch_value;
+    float   set_power;
+    int16_t power_on_value;
+};
+
+extern inverterValues inverter_values;
+
 bool inverterWrite(uint16_t reg, int16_t value);
 bool inverterRead(uint16_t reg, uint16_t count, int16_t* out);
-void inverterInit(HardwareSerial& serial, uint8_t deRePin);
-void readFirmwareVersion(FirmData& firm);
+void inverter_init_defaults(HardwareSerial& serial, uint8_t deRePin);
+void inverter_reinit_from_cloud(const inverterValues& inv_values);
 void verifyAndReinit();
-void pollModbus(InvData& inv);
+void readFirmwareVersion(FirmData& firm);
 bool inverterSetPower(float kw);
 bool inverterPowerOn();
 bool inverterShutdown();
-bool inverterReadRaw(uint16_t reg, int16_t* out);  // diagnostic — read single register
+void pollModbus(InvData& inv);

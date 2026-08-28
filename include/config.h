@@ -15,6 +15,8 @@
 // ---------------------------------------------------------------------------
 // CONFIGURACIÓN INTERNA DE HARDWARE Y REGISTROS
 // ---------------------------------------------------------------------------
+
+// Modubus RTU del inversor
 #define RS485_BAUD       115200
 #define RS485_SERIAL     Serial2
 #define RS485_TX_PIN     17
@@ -22,12 +24,35 @@
 #define RS485_DE_RE_PIN  4
 #define MODBUS_DEVICE_ID 1
 
+#define DEFAULT_DC_MAX_DISCHG_CURRENT 150.0
+#define DEFAULT_DC_MAX_CHG_CURRENT 150.0
+#define DEFAULT_ANTI_BACKFLOW_VALUE 1
+#define DEFAULT_SCHED_MODE_VALUE 0
+#define DEFAULT_THREE_PHASE_CTRL_MODE_VALUE 1
+#define DEFAULT_PV_SWITCH_VALUE 0
+#define DEFAULT_LEAKAGE_DETECT_VALUE 0
+#define DEFAULT_DCDC_SWITCH_VALUE 0
+#define DEFAULT_SET_POWER -2.0f
+#define DEFAULT_POWER_ON_VALUE 1
+
+#define CANT_REG_INIT 10
+    
+
 // Protocolo Modbus del inversor
 // Descomentar si el firmware es >= V3.0 — habilita lectura de regs 200-213 (load)
 // El firmware actual es V2.88 — dejar comentado
 // #define INVERTER_PROTOCOL_V3
 
+// Modbus RTU de la alarma de gas
+#define GAS_BAUD         9600
+#define GAS_SERIAL       Serial1
+#define GAS_TX_PIN       27
+#define GAS_RX_PIN       26
+#define GAS_DE_RE_PIN    25
+#define GAS_DEVICE_ID    1
+
 // Pines del Módulo CAN MCP2515
+#define LISTEN_INTERVAL_BMS  5000
 #define CAN_CS    15   // Pin Chip Select exclusivo para el MCP2515
 #define CAN_INT   22   // Pin de Interrupción para que el MCP2515 te avise de datos nuevos
 // Los demas pines como MOSI (23), MISO (19), y SCK (18) estan definidos por defecto.
@@ -51,27 +76,9 @@
 #define LED_OFF()        digitalWrite(LED_PIN, HIGH)
 
 // Intervalos de polling (ms)
-#define POLL_MODBUS_MS   5000
-#define PUBLISH_MS       10000
-#define VERIFY_INIT_MS   60000
-
-// Registros Modbus — SP6030 protocolo V3.0
-// Las definiciones de registros de control están en lib/inverter_parser/src/inverter_parser.h
-// Lectura
-#define REG_STATUS                  32
-#define REG_STATUS_COUNT             1
-#define REG_AC_START               100
-#define REG_AC_COUNT                26
-#define REG_DC_START               141
-#define REG_DC_COUNT                 3
-#define REG_GRID_START             170
-#define REG_GRID_COUNT              10
-#define REG_GRID_POWER             192
-#define REG_LOAD_START             200
-#define REG_LOAD_COUNT              14
-#define REG_VERSION_START            0
-#define REG_VERSION_COUNT           22
-
+#define DEFAULT_POLL_MODBUS_MS   5000
+#define DEFAULT_PUBLISH_MS       10000
+#define DEFAULT_VERIFY_INIT_MS   60000
 
 // ---------------------------------------------------------------------------
 // Control térmico de baterías — ventiladores y heating plates
@@ -84,19 +91,18 @@
 // segundo GPIO porque a veces se controlan por separado.
 #define HEATING_RELAY_PIN     12
  
-// Umbrales de temperatura (°C), para el HEATING
-#define TEMP_HEAT_ENTER_C     10.0f   // T_UMBRAL_1 — T_min por debajo de esto: entra a HEATING
-#define TEMP_HEAT_EXIT_C      20.0f   // T_UMBRAL_4 — T_min por encima de esto: sale de HEATING a MONITOR
-#define TEMP_PLATE_MAX_C      50.0f   // T_UMBRAL_2 — T_max por encima de esto: corta la fase ON antes de tiempo
-#define TEMP_PLATE_HYSTERESIS_C 15.0f  // delta — separación para el umbral de reanudar la fase ON
-#define TEMP_PLATE_RESUME_C   (TEMP_PLATE_MAX_C - TEMP_PLATE_HYSTERESIS_C)  // T_UMBRAL_3
 
-// Umbrales de temperatura (°C), para el COOLING 
- 
-#define TEMP_COOL_ON_C        40.0f   // por encima: hace falta enfriar
-#define TEMP_COOL_OFF_C       30.0f   // histéresis: se apagan ventiladores por debajo de esto
-#define TEMP_COOL_POT         55.0f   // limite a partir del cual se reduce la potencia
-#define TEMP_CRITICAL_C       60.0f   // límite de seguridad absoluto - Se apaga el sistema
+// Aca van los valores default para los umbrales de temperatura
+#define DEFAULT_TEMP_HEAT_ENTER_C     10.0f
+#define DEFAULT_TEMP_HEAT_EXIT_C      20.0f
+#define DEFAULT_TEMP_PLATE_MAX_C      50.0f
+#define DEFAULT_TEMP_PLATE_MIN_C      35.0f  // el delta es de 15 grados como dijo el Seba
+
+#define DEFAULT_TEMP_COOL_ON_C        40.0f
+#define DEFAULT_TEMP_COOL_OFF_C       30.0f
+#define DEFAULT_TEMP_COOL_POT         55.0f
+#define DEFAULT_TEMP_COOL_CRITICAL_C       60.0f
+
 
 // Si hace falta se pueden considerar timeouts pero hay que estudiarlos con cuidado
  
