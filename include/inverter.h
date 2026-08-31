@@ -61,8 +61,10 @@ extern inverterValues inverter_values;
 
 bool inverterWrite(uint16_t reg, int16_t value);
 bool inverterRead(uint16_t reg, uint16_t count, int16_t* out);
-void inverter_init_defaults(HardwareSerial& serial, uint8_t deRePin);
-void inverter_reinit_from_cloud(const inverterValues& inv_values);
+void inverterInit(HardwareSerial& serial, uint8_t deRePin);
+void inverter_init_defaults();
+void inverter_reinit_from_cloud();
+void inverter_update_reg_values(const String& key, float value);
 void verifyAndReinit();
 void readFirmwareVersion(FirmData& firm);
 bool inverterSetPower(float kw);

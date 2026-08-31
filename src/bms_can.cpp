@@ -59,7 +59,7 @@ void bmsCanInit(ModoFuncionamiento modo) {
     if (modo == MODO_NORMAL){
         mcp2515.setNormalMode();
     }
-    Serial.println("[CAN] MCP2515 configurado en MODO LOOPBACK (500 Kbps). Listo para escuchar el BMS real.");
+    Serial.println("[CAN] MCP2515 configurado.");
 }
 
 

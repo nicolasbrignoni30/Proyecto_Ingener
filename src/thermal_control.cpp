@@ -63,8 +63,21 @@ void thermal_thresholds_init_defaults(){
     thermal_thresholds.cool_critical_c = DEFAULT_TEMP_COOL_CRITICAL_C;
 }
 
-void thermal_thresholds_reinit_from_cloud(const ThermalThresholds& thresholds){
-    thermal_thresholds = thresholds;
+void thermal_update_threshold(const String& key, float value) {
+    if      (key == "heat_enter_c")    thermal_thresholds.heat_enter_c = value;
+    else if (key == "heat_exit_c")     thermal_thresholds.heat_exit_c = value;
+    else if (key == "plate_max_c")     thermal_thresholds.plate_max_c = value;
+    else if (key == "plate_min_c")     thermal_thresholds.plate_min_c = value;
+    else if (key == "cool_on_c")       thermal_thresholds.cool_on_c = value;
+    else if (key == "cool_off_c")      thermal_thresholds.cool_off_c = value;
+    else if (key == "cool_pot_c")      thermal_thresholds.cool_pot_c = value;
+    else if (key == "cool_critical_c") thermal_thresholds.cool_critical_c = value;
+    else return; // key que no le corresponde a este módulo, se ignora
+
+    //Serial.print("[THERMAL] ");
+    //Serial.print(key);
+    //Serial.print(" = ");
+    //Serial.println(value);
 }
 
 
@@ -131,3 +144,4 @@ bool thermalControlUpdate(unsigned long now_ms, float temp_min, float temp_max, 
     }
     return shut_down;
 }
+

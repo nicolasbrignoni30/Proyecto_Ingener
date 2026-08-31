@@ -63,13 +63,28 @@ void onBmsFrame(can_frame* ptr_msg) {
 // de si hay que avisarle a EveMove que hay que bajar la potencia o directamente cortar
 void publicarEstadoCooling(float T, bool bajar_pot, bool shut_down) {
     publishTemperature(T, bajar_pot, shut_down);
-}
+};
+
+void init(){
+    SPI.begin();
+    Serial2.begin(RS485_BAUD, SERIAL_8N1, RS485_RX_PIN, RS485_TX_PIN);
+    inverterInit(RS485_SERIAL, RS485_DE_RE_PIN);
+    bmsCanInit(modoCan);
+    dhtInit(DHT_PIN);
+    connectWiFi();
+    connectMQTT();
+};
 
 void init_all_defaults(){
-    Serial2.begin(RS485_BAUD, SERIAL_8N1, RS485_RX_PIN, RS485_TX_PIN);
-    inverter_init_defaults(RS485_SERIAL, RS485_DE_RE_PIN);
+    inverter_init_defaults();
     thermal_thresholds_init_defaults();
 };
+
+
+void telemetria_set_attribute_handler(const String& key, float value) {
+    thermal_update_threshold(key, value);
+    inverter_update_reg_values(key, value);
+}
 
 // ---------------------------------------------------------------------------
 // Setup
@@ -78,93 +93,49 @@ void setup() {
     Serial.begin(115200);
     while (!Serial); // espera a que se abra la terminal (útil en algunas placas)
 
-    // --- CAN (BMS) ---
-    SPI.begin();
-    bmsCanInit(modoCan);
-    Serial.println("[MAIN] BMS/CAN inicializado.");
+    // Se inicializan todos lo modulo.
+    init();
 
-    // --- Control térmico (pines de relé) ---
-    thermalControlInit();
-    Serial.println("[MAIN] Control termico inicializado.");
-
-    // --- Sensor de temperatura/humedad ambiente ---
-    dhtInit(DHT_PIN);
-    Serial.println("[MAIN] Sensor DHT inicializado.");
-
-    // --- WiFi + MQTT ---
-    connectWiFi();
-    connectMQTT();
-
+    // Se incializan todos los valores default puesto en la memoria flash.
     init_all_defaults();
+
+    // Se piden los atributos 
+    pedirAtributos();
+    delay(10000);
+
+    // Se llama a loopMQTT()
+    loopMQTT();
 
     Serial.println("[MAIN] Setup finalizado con exito. Corriendo lazo...");
     Serial.println("--------------------------------------------------");
+
+    // A diferencia de con thermal_control, para el inversor hay que volver a escribir los registros
+    //inverter_reinit_from_cloud();
+
+    Serial.println("--- Thermal Thresholds ---");
+    Serial.print("heat_enter_c: ");    Serial.println(thermal_thresholds.heat_enter_c);
+    Serial.print("heat_exit_c: ");     Serial.println(thermal_thresholds.heat_exit_c);
+    Serial.print("plate_max_c: ");     Serial.println(thermal_thresholds.plate_max_c);
+    Serial.print("plate_min_c: ");     Serial.println(thermal_thresholds.plate_min_c);
+    Serial.print("cool_on_c: ");       Serial.println(thermal_thresholds.cool_on_c);
+    Serial.print("cool_off_c: ");      Serial.println(thermal_thresholds.cool_off_c);
+    Serial.print("cool_pot_c: ");      Serial.println(thermal_thresholds.cool_pot_c);
+    Serial.print("cool_critical_c: "); Serial.println(thermal_thresholds.cool_critical_c);
+
+    Serial.println("--- Inverter Values ---");
+    Serial.print("dc_max_dischg_current: ");       Serial.println(inverter_values.dc_max_dischg_current);
+    Serial.print("dc_max_chg_current: ");          Serial.println(inverter_values.dc_max_chg_current);
+    Serial.print("anti_backflow_value: ");         Serial.println(inverter_values.anti_backflow_value);
+    Serial.print("grid_sched_mode_value: ");       Serial.println(inverter_values.grid_sched_mode_value);
+    Serial.print("three_phase_ctrl_mode_value: "); Serial.println(inverter_values.three_phase_ctrl_mode_value);
+    Serial.print("pv_switch_value: ");             Serial.println(inverter_values.pv_switch_value);
+    Serial.print("leakage_detect_value: ");        Serial.println(inverter_values.leakage_detect_value);
+    Serial.print("dcdc_switch_value: ");           Serial.println(inverter_values.dcdc_switch_value);
+    Serial.print("set_power: ");                   Serial.println(inverter_values.set_power);
+    Serial.print("power_on_value: ");               Serial.println(inverter_values.power_on_value);
 }
 
 // ---------------------------------------------------------------------------
 // Loop
 // ---------------------------------------------------------------------------
-void loop() {
-    // Como la conexion TCP tiene timeout hay que reconectar cada tanto
-    // --- Conectividad ---
-    if (!checkWiFiConnection()) {
-        connectWiFi();
-    }
-    if (checkWiFiConnection() && !checkMQTTConnection()) {
-        connectMQTT();
-    }
-    if (checkMQTTConnection()) {
-        loopMQTT();
-    }
-
-    // --- 1 y 2: BMS por CAN + telemetría ---
-    // Bloquea hasta juntar un lote de frames o hasta el timeout (LISTEN_INTERVAL_BMS).
-    // `bms` queda actualizado con lo que haya llegado, aunque el lote se corte por timeout.
-    bool loteCompleto = bmsReceiveBatchBlocking(&canMsgRx, 9, 2000, onBmsFrame);
-    if (!loteCompleto) {
-        Serial.println("[BMS] Lote incompleto (timeout) — publico igual con los datos que llegaron.");
-    }
-    publishTelemetryBMS(bms);
-
-    // --- 3: Temperatura ambiente (DHT22 Sensor) ---
-    dht = dhtRead();
-    if (dht.valid) {
-        lastTempAmb = dht.temperature_c;
-    } else {
-        Serial.println("[DHT] Lectura invalida — uso el ultimo valor valido.");
-    }
-
-    // --- 4: Control térmico ---
-    bool pedirShutdown = thermalControlUpdate(millis(), bms.temp_cell_min_c,
-                                               bms.temp_cell_max_c, lastTempAmb,
-                                               publicarEstadoCooling);
-    if (pedirShutdown) {
-        Serial.println("[MAIN] Temperatura critica -> pidiendo shutdown al inversor.");
-        //##########################################
-        // Esto hay que revisarlo bien a ver si anda
-        //##########################################
-        inverterWrite(REG_SHUTDOWN, 1);
-    }
-
-    // --- 5: Inversor (Modbus) + telemetría ---
-    // pollModbus hace varias transacciones Modbus bloqueantes, así que se
-    // sondea de forma periódica en vez de en cada vuelta del loop.
-    if (millis() - lastPollInv >= DEFAULT_POLL_MODBUS_MS) {
-        lastPollInv = millis();
-        pollModbus(datosInv);
-
-        publishTelemetryInv(datosInv, "StatusData");
-        publishTelemetryInv(datosInv, "AcData");
-        publishTelemetryInv(datosInv, "DcData");
-        publishTelemetryInv(datosInv, "GridData");
-#ifdef INVERTER_PROTOCOL_V3
-        publishTelemetryInv(datosInv, "LoadData");
-#endif
-    }
-
-    // --- 6: Inversor (Reiniciar) ---
-    if (millis() - lastVerifyInv > DEFAULT_VERIFY_INIT_MS){
-        lastVerifyInv = millis();
-        verifyAndReinit();
-    }
-}
+void loop() {}

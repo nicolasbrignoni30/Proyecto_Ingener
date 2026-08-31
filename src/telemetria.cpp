@@ -14,6 +14,40 @@
 WiFiClient         wifiClient;
 PubSubClient       mqtt(wifiClient);
 
+namespace{
+    void onMqttMessage(char* topic, byte* payload, unsigned int length) {
+        String msg;
+        for (unsigned int i = 0; i < length; i++) msg += (char)payload[i];
+        String t = String(topic);
+
+        Serial.print("[MQTT] Mensaje en topic: '");
+        Serial.print(t);
+        Serial.println("'");
+
+        StaticJsonDocument<4096> doc;
+        DeserializationError err = deserializeJson(doc, msg);
+        if (err) {
+            Serial.print("[MQTT] Error parseando JSON: ");
+            Serial.println(err.c_str());
+            return;
+        }
+
+        JsonObject atributos;
+
+        if (t.startsWith("v1/devices/me/attributes/response/")) {
+            atributos = doc["shared"];
+        } else if (t == TOPIC_ATTRIBUTES_SUB) {
+            atributos = doc.as<JsonObject>();
+        }
+
+        if (atributos.isNull()) return;
+
+        for (JsonPair kv : atributos) {
+            telemetria_set_attribute_handler(kv.key().c_str(), kv.value().as<float>());
+        }
+    }
+}
+
 
 bool checkWiFiConnection(){
     return (WiFi.status() == WL_CONNECTED);
@@ -39,13 +73,27 @@ bool checkMQTTConnection(){
 void connectMQTT() {
     mqtt.setServer(TB_HOST, TB_PORT);
     mqtt.setBufferSize(2048);
+    mqtt.setCallback(onMqttMessage);
+    
     String clientId = "ESP32_test_tb_" + String((uint32_t)ESP.getEfuseMac(), HEX);
-    Serial.print("[MQTT] Connecting...");
+
     if (mqtt.connect(clientId.c_str(), TB_ACCESS_TOKEN, nullptr)) {
-        Serial.println(" OK");
+        Serial.println("MQTT conectado");
     } else {
-        Serial.printf(" failed rc=%d\n", mqtt.state());
+        Serial.print("Fallo conexion MQTT, rc=");
+        Serial.println(mqtt.state());
     }
+}
+
+void pedirAtributos(){
+    mqtt.publish(TOPIC_ATTR_REQUEST, SHARED_KEYS_REQUEST);
+    mqtt.subscribe(TOPIC_ATTR_RESPONSE);
+}
+
+void suscribirAtributos(){
+    bool ok = mqtt.subscribe(TOPIC_ATTRIBUTES_SUB);
+    Serial.print("[MQTT] Subscribe a atributos ok?: ");
+    Serial.println(ok);
 }
 
 void loopMQTT(){
@@ -103,7 +151,7 @@ void publishTelemetryInv(const InvData& inv, const std::string& campo) {
         char payload[512];
         serializeJson(doc, payload, sizeof(payload));
         Serial.printf("[MQTT] Payload %d bytes\n", strlen(payload));
-        bool ok = mqtt.publish("v1/devices/me/telemetry", payload);
+        bool ok = mqtt.publish(TOPIC_TELEMETRY, payload);
         if (!ok) {
             Serial.println("[MQTT] Inv Publish failed");
         }
@@ -162,7 +210,7 @@ void publishTelemetryBMS(const BmsData& datosBms){
     char payload[2048];
     serializeJson(doc, payload, sizeof(payload));
     Serial.printf("[MQTT] Payload %d bytes\n", strlen(payload));
-    bool ok = mqtt.publish("v1/devices/me/telemetry", payload);
+    bool ok = mqtt.publish(TOPIC_TELEMETRY, payload);
     if (!ok) {
         Serial.println("[MQTT] BMS Publish failed");
     }
@@ -183,7 +231,7 @@ void publishTemperature(const float temp, bool bajar_pot, bool shut_down){
     size_t len = serializeJson(doc, payload, sizeof(payload));
 
     Serial.printf("[MQTT] Payload %d bytes\n", len);
-    bool ok = mqtt.publish("v1/devices/me/telemetry", payload);
+    bool ok = mqtt.publish(TOPIC_TELEMETRY, payload);
     if (!ok) {
         Serial.println("[MQTT] Publish failed");
     }
@@ -300,7 +348,7 @@ void publishTelemetrySim(const Sim& sim) {
     char payload[2048];
     serializeJson(doc, payload, sizeof(payload));
     Serial.printf("[MQTT] Payload %d bytes\n", strlen(payload));
-    bool ok = mqtt.publish("v1/devices/me/telemetry", payload);
+    bool ok = mqtt.publish(TOPIC_TELEMETRY, payload);
     //mqttOk = ok || mqtt.connected();
     Serial.printf("[MQTT] Publish %s — SOC=%d%% P_inv=%.1fkW Grid=%.1fkW\n",
                   ok ? "OK" : "FAIL", (int)sim.soc, sim.p_inv, sim.grid_p);

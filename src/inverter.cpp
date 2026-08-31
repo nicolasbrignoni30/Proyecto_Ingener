@@ -16,10 +16,6 @@
 // =============================================================================
 
 #include "inverter.h"
-#include "inverter_parser.h"
-#include "inverter_scales.h"
-#include "config.h"
-#include <ModbusMaster.h>
 
 // ---------------------------------------------------------------------------
 // Modbus node — inverter
@@ -91,11 +87,6 @@ namespace{
         inverter_values.set_power                   = DEFAULT_SET_POWER;
         inverter_values.power_on_value              = DEFAULT_POWER_ON_VALUE;
     }
-
-    void asignar_valores_cloud(const inverterValues& nuevos) {
-    inverter_values = nuevos;
-    }
-
 };
 
 
@@ -130,13 +121,16 @@ bool inverterWrite(uint16_t reg, int16_t value) {
 // Init
 // ---------------------------------------------------------------------------
 
-void inverter_init_defaults(HardwareSerial& serial, uint8_t deRePin) {
+void inverterInit(HardwareSerial& serial, uint8_t deRePin){
     _deRePin = deRePin;
     pinMode(deRePin, OUTPUT);
     digitalWrite(deRePin, LOW);
     inv.begin(MODBUS_DEVICE_ID, serial);
     inv.preTransmission(preTransmission);
     inv.postTransmission(postTransmission);
+};
+
+void inverter_init_defaults() {
     
     // Se ponen los valores default en la variable inverter_values compartida
     asignar_valores_default();
@@ -146,9 +140,26 @@ void inverter_init_defaults(HardwareSerial& serial, uint8_t deRePin) {
     Serial.printf("[Inverter] Init %s\n", ok ? "OK" : "WARNING: algún registro falló");
 }
 
-void inverter_reinit_from_cloud(const inverterValues& inv_values){
-    asignar_valores_cloud(inv_values);
+void inverter_update_reg_values(const String& key, float value) {
+    if      (key == "dc_max_dischg_current")        inverter_values.dc_max_dischg_current = value;
+    else if (key == "dc_max_chg_current")           inverter_values.dc_max_chg_current = value;
+    else if (key == "anti_backflow_value")          inverter_values.anti_backflow_value = value;
+    else if (key == "grid_sched_mode_value")        inverter_values.grid_sched_mode_value  = value;
+    else if (key == "three_phase_ctrl_mode_value")  inverter_values.three_phase_ctrl_mode_value = value;
+    else if (key == "pv_switch_value")              inverter_values.pv_switch_value  = value;
+    else if (key == "leakage_detect_value")         inverter_values.leakage_detect_value = value;
+    else if (key == "dcdc_switch_value")            inverter_values.dcdc_switch_value = value;
+    else if (key == "set_power")                    inverter_values.set_power = value;
+    else if (key == "power_on_value")               inverter_values.power_on_value = value;
+    else return; // key que no le corresponde a este módulo, se ignora
 
+    //Serial.print("[INVERTER REG] ");
+    //Serial.print(key);
+    //Serial.print(" = ");
+    //Serial.println(value);
+}
+
+void inverter_reinit_from_cloud(){
     bool ok = inverter_run_init();
     Serial.printf("[Inverter] Init %s\n", ok ? "OK" : "WARNING: algún registro falló");
 };
