@@ -16,7 +16,7 @@
 #define TOPIC_ATTR_REQUEST       "v1/devices/me/attributes/request/1"
 #define TOPIC_ATTR_RESPONSE      "v1/devices/me/attributes/response/1"
 
-#define SHARED_KEYS_REQUEST "{\"sharedKeys\":\"heat_enter_c,heat_exit_c,plate_max_c,plate_min_c,cool_on_c,cool_off_c,cool_pot_c,cool_critical_c,dc_max_dischg_current,dc_max_chg_current,anti_backflow_value,grid_sched_mode_value,three_phase_ctrl_mode_value,pv_switch_value,leakage_detect_value,dcdc_switch_value,set_power,power_on_value\"}"
+#define SHARED_KEYS_REQUEST "{\"sharedKeys\":\"heat_enter_c,heat_exit_c,plate_max_c,plate_min_c,cool_on_c,cool_off_c,cool_pot_c,cool_critical_c,dc_max_dischg_current,dc_max_chg_current,anti_backflow_value,grid_sched_mode_value,three_phase_ctrl_mode_value,pv_switch_value,leakage_detect_value,dcdc_switch_value,set_power,power_on_value,listen_bms_ms,poll_modbus_ms,verify_init_ms,poll_gas_alarm_ms\"}"
 
 
 // Estructura de datos para el caso de datos simulados
@@ -51,11 +51,10 @@ void telemetria_set_attribute_handler2(const String& key, float value);
 bool checkWiFiConnection();
 void connectWiFi();
 bool checkMQTTConnection();
-void setCallback();
 void connectMQTT();
-void request_attributes();
-void suscribirAtributos();
 void loopMQTT();
+void setCallback();
+void request_attributes();
 void publishTelemetryBMS(const BmsData& datosBms);
 void publishTelemetryInv(const InvData& inv, const std::string& campo);
 void publishCoolingAttributes(bool bajar_pot, bool shut_down);

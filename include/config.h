@@ -17,12 +17,16 @@
 // ---------------------------------------------------------------------------
 
 // Modubus RTU del inversor
-#define RS485_BAUD       115200
-#define RS485_SERIAL     Serial2
-#define RS485_TX_PIN     17
-#define RS485_RX_PIN     16
-#define RS485_DE_RE_PIN  4
+#define INVERTER_BAUD       115200
+#define INVERTER_SERIAL     Serial2
+#define INVERTER_TX_PIN     17
+#define INVERTER_RX_PIN     16
+#define INVERTER_DE_RE_PIN  4
 #define MODBUS_DEVICE_ID 1
+
+// Intervalos de polling (ms)
+#define DEFAULT_POLL_MODBUS_MS   5000
+#define DEFAULT_VERIFY_INIT_MS   60000
 
 #define DEFAULT_DC_MAX_DISCHG_CURRENT 150.0
 #define DEFAULT_DC_MAX_CHG_CURRENT 150.0
@@ -51,6 +55,8 @@
 #define GAS_DE_RE_PIN    25
 #define GAS_DEVICE_ID    1
 
+#define DEFAULT_GAS_ALARM_MS 5000
+
 // Pines del Módulo CAN MCP2515
 #define DEFAULT_LISTEN_BMS_MS  5000
 #define CAN_CS    15   // Pin Chip Select exclusivo para el MCP2515
@@ -74,10 +80,6 @@
 #define LED_PIN          2
 #define LED_ON()         digitalWrite(LED_PIN, LOW)
 #define LED_OFF()        digitalWrite(LED_PIN, HIGH)
-
-// Intervalos de polling (ms)
-#define DEFAULT_POLL_MODBUS_MS   5000
-#define DEFAULT_VERIFY_INIT_MS   60000
 
 // ---------------------------------------------------------------------------
 // Control térmico de baterías — ventiladores y heating plates
@@ -106,13 +108,13 @@
 // Si hace falta se pueden considerar timeouts pero hay que estudiarlos con cuidado
  
 // Ciclo de calentamiento (estado HEATING)
-#define HEATING_ON_MIN          1     // minutos máx. de la fase ON por ciclo
-#define HEATING_OFF_MIN         2     // minutos mín. de la fase OFF por ciclo
-#define HEATING_TIMEOUT_MIN    10     // timeout de seguridad: tiempo máx. total en HEATING
-                                       // (por si T_min nunca sube por falla de sensor u otra causa)
+// #define HEATING_ON_MIN          1     // minutos máx. de la fase ON por ciclo
+// #define HEATING_OFF_MIN         2     // minutos mín. de la fase OFF por ciclo
+// #define HEATING_TIMEOUT_MIN    10     // timeout de seguridad: tiempo máx. total en HEATING
+//                                        // (por si T_min nunca sube por falla de sensor u otra causa)
  
-#define HEATING_ON_MS        (HEATING_ON_MIN     * 60UL * 1000UL)
-#define HEATING_OFF_MS       (HEATING_OFF_MIN    * 60UL * 1000UL)
-#define HEATING_TIMEOUT_MS   (HEATING_TIMEOUT_MIN * 60UL * 1000UL)
+// #define HEATING_ON_MS        (HEATING_ON_MIN     * 60UL * 1000UL)
+// #define HEATING_OFF_MS       (HEATING_OFF_MIN    * 60UL * 1000UL)
+// #define HEATING_TIMEOUT_MS   (HEATING_TIMEOUT_MIN * 60UL * 1000UL)
  
  
