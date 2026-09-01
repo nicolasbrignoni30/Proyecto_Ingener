@@ -78,7 +78,7 @@ bool bmsReceive(can_frame* ptr_msg) {
 }
 
 
-bool bmsReceiveBatchBlocking(can_frame* ptr_msg, uint8_t num_frames, unsigned long timeout_ms, void (*onFrame)(can_frame*)) {
+bool bmsReceiveBatch(can_frame* ptr_msg, uint8_t num_frames, unsigned long timeout_ms, void (*onFrame)(can_frame*)) {
     limpiarBuffers_Rx();
  
     unsigned long inicio = millis();

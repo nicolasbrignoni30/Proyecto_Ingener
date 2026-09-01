@@ -57,6 +57,17 @@ struct inverterValues{
     int16_t power_on_value;
 };
 
+#define MAX_PENDING_WRITES 10
+
+struct PendingWrite {
+    bool        activo;
+    uint16_t    reg;
+    int16_t     value;
+    const char* nombre;
+};
+
+extern PendingWrite pendingWrites[MAX_PENDING_WRITES];
+
 extern inverterValues inverter_values;
 
 bool inverterWrite(uint16_t reg, int16_t value);
@@ -65,6 +76,8 @@ void inverterInit(HardwareSerial& serial, uint8_t deRePin);
 void inverter_init_defaults();
 void inverter_reinit_from_cloud();
 void inverter_update_reg_values(const String& key, float value);
+void inverter_queue_write(const String& key, float value);
+void inverter_process_pending_writes();
 void verifyAndReinit();
 void readFirmwareVersion(FirmData& firm);
 bool inverterSetPower(float kw);

@@ -23,6 +23,7 @@
 static ModbusMaster inv;
 
 inverterValues inverter_values;
+PendingWrite pendingWrites[MAX_PENDING_WRITES];
 
 namespace{
 
@@ -87,6 +88,16 @@ namespace{
         inverter_values.set_power                   = DEFAULT_SET_POWER;
         inverter_values.power_on_value              = DEFAULT_POWER_ON_VALUE;
     }
+
+    static void encolar(uint16_t reg, int16_t raw, const char* nombre) {
+        for (int i = 0; i < MAX_PENDING_WRITES; i++) {
+            if (!pendingWrites[i].activo) {
+                pendingWrites[i] = { true, reg, raw, nombre };
+                return;
+            }
+        }
+        Serial.println("[INVERTER] WARNING: cola de writes llena, se descarta");
+    }
 };
 
 
@@ -140,6 +151,12 @@ void inverter_init_defaults() {
     Serial.printf("[Inverter] Init %s\n", ok ? "OK" : "WARNING: algún registro falló");
 }
 
+void inverter_reinit_from_cloud(){
+    bool ok = inverter_run_init();
+    Serial.printf("[Inverter] Init %s\n", ok ? "OK" : "WARNING: algún registro falló");
+};
+
+
 void inverter_update_reg_values(const String& key, float value) {
     if      (key == "dc_max_dischg_current")        inverter_values.dc_max_dischg_current = value;
     else if (key == "dc_max_chg_current")           inverter_values.dc_max_chg_current = value;
@@ -152,17 +169,61 @@ void inverter_update_reg_values(const String& key, float value) {
     else if (key == "set_power")                    inverter_values.set_power = value;
     else if (key == "power_on_value")               inverter_values.power_on_value = value;
     else return; // key que no le corresponde a este módulo, se ignora
-
-    //Serial.print("[INVERTER REG] ");
-    //Serial.print(key);
-    //Serial.print(" = ");
-    //Serial.println(value);
 }
 
-void inverter_reinit_from_cloud(){
-    bool ok = inverter_run_init();
-    Serial.printf("[Inverter] Init %s\n", ok ? "OK" : "WARNING: algún registro falló");
-};
+void inverter_queue_write(const String& key, float value) {
+    if (key == "dc_max_dischg_current") {
+        inverter_values.dc_max_dischg_current = value;
+        encolar(REG_DC_MAX_DISCHG_CURRENT, (int16_t)(value / SCALE_CURRENT_A), "dc_max_dischg_current");
+    }
+    else if (key == "dc_max_chg_current") {
+        inverter_values.dc_max_chg_current = value;
+        encolar(REG_DC_MAX_CHG_CURRENT, (int16_t)(value / SCALE_CURRENT_A), "dc_max_chg_current");
+    }
+    else if (key == "anti_backflow_value") {
+        inverter_values.anti_backflow_value = (int16_t)value;
+        encolar(REG_ANTI_BACKFLOW, (int16_t)value, "anti_backflow_value");
+    }
+    else if (key == "grid_sched_mode_value") {
+        inverter_values.grid_sched_mode_value = (int16_t)value;
+        encolar(REG_GRID_SCHED_MODE, (int16_t)value, "grid_sched_mode_value");
+    }
+    else if (key == "three_phase_ctrl_mode_value") {
+        inverter_values.three_phase_ctrl_mode_value = (int16_t)value;
+        encolar(REG_3PHASE_CTRL_MODE, (int16_t)value, "three_phase_ctrl_mode_value");
+    }
+    else if (key == "pv_switch_value") {
+        inverter_values.pv_switch_value = (int16_t)value;
+        encolar(REG_PV_SWITCH, (int16_t)value, "pv_switch_value");
+    }
+    else if (key == "leakage_detect_value") {
+        inverter_values.leakage_detect_value = (int16_t)value;
+        encolar(REG_LEAKAGE_DETECT, (int16_t)value, "leakage_detect_value");
+    }
+    else if (key == "dcdc_switch_value") {
+        inverter_values.dcdc_switch_value = (int16_t)value;
+        encolar(REG_DCDC_SWITCH, (int16_t)value, "dcdc_switch_value");
+    }
+    else if (key == "set_power") {
+        inverter_values.set_power = value;
+        encolar(REG_SET_POWER, (int16_t)(value / SCALE_SET_POWER_KW), "set_power");
+    }
+    else if (key == "power_on_value") {
+        inverter_values.power_on_value = (int16_t)value;
+        encolar(REG_POWER_ON, (int16_t)value, "power_on_value");
+    }
+}
+
+void inverter_process_pending_writes() {
+    for (int i = 0; i < MAX_PENDING_WRITES; i++) {
+        if (pendingWrites[i].activo) {
+            bool ok = inverterWrite(pendingWrites[i].reg, pendingWrites[i].value);
+            Serial.printf("[INVERTER] Write %s (reg %u) = %d %s\n",
+                pendingWrites[i].nombre, pendingWrites[i].reg, pendingWrites[i].value, ok ? "OK" : "FALLO");
+            pendingWrites[i].activo = false;
+        }
+    }
+}
 
 // ---------------------------------------------------------------------------
 // Verify and reinit

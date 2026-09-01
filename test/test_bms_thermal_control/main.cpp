@@ -50,7 +50,10 @@ void setup() {
     dhtInit(DHT_PIN);
     // Es importante hacer el 'Serial2.begin' para configurar el puerto UART fisico digamos
     Serial2.begin(RS485_BAUD, SERIAL_8N1, RS485_RX_PIN, RS485_TX_PIN);  // 1º: levanta el UART físico
-    inverter_init_defaults(Serial2, RS485_DE_RE_PIN); 
+    inverterInit(Serial2, RS485_DE_RE_PIN); 
+
+    inverter_init_defaults();
+    thermal_thresholds_init_defaults();
 
     Serial.println("[MAIN] Setup finalizado con éxito. Corriendo lazo...");
     Serial.println("--------------------------------------------------");
@@ -66,8 +69,8 @@ void parser(can_frame* ptr_msg){
     bms_parse_can(id, (*ptr_msg).data, bms);
 }
 
-void sendCoolingState(float T, bool b1, bool b2){
-    publishTemperature(T, b1, b2);
+void sendCoolingState(bool b1, bool b2){
+    publishCoolingAttributes(b1, b2);
 }
 
 void loop() {
