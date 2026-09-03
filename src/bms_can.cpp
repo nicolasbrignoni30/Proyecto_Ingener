@@ -25,14 +25,14 @@ namespace{
 
     void limpiarBuffers_Rx() {
         nuevoMensajeCAN = false;
-        if (mcp2515.checkError()) {
-            Serial.println("ALERT: [MCP2515] Se tiene overflow");
+        // if (mcp2515.checkError()) {
+        //     Serial.println("ALERT: [MCP2515] Se tiene overflow");
             
-            //Aca se escriben los bit del registro de error.
-            uint8_t flags = mcp2515.getErrorFlags();
-            Serial.print("Registro EFLG (Código de error): 0x");
-            Serial.println(flags, HEX);
-        }
+        //     //Aca se escriben los bit del registro de error.
+        //     uint8_t flags = mcp2515.getErrorFlags();
+        //     Serial.print("Registro EFLG (Código de error): 0x");
+        //     Serial.println(flags, HEX);
+        // }
         // Limpiamos el overflow para desbloquear la recepción
         mcp2515.clearRXnOVR();
         
