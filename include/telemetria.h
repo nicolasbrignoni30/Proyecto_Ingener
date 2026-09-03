@@ -55,6 +55,7 @@ void connectMQTT();
 void loopMQTT();
 void setCallback();
 void request_attributes();
+void suscribe_attributes();
 void publishTelemetryBMS(const BmsData& datosBms);
 void publishTelemetryInv(const InvData& inv, const std::string& campo);
 void publishCoolingAttributes(bool bajar_pot, bool shut_down);

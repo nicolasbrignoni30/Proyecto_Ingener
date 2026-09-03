@@ -115,9 +115,6 @@ void connectMQTT() {
 
     if (mqtt.connect(clientId.c_str(), TB_ACCESS_TOKEN, nullptr)) {
         Serial.println("MQTT conectado");
-        bool ok = mqtt.subscribe(TOPIC_ATTRIBUTES_SUB);
-        Serial.print("[MQTT] Subscribe a atributos ok?: ");
-        Serial.println(ok);
     } else {
         Serial.print("Fallo conexion MQTT, rc=");
         Serial.println(mqtt.state());
@@ -127,6 +124,12 @@ void connectMQTT() {
 void request_attributes(){
     mqtt.publish(TOPIC_ATTR_REQUEST, SHARED_KEYS_REQUEST);
     mqtt.subscribe(TOPIC_ATTR_RESPONSE);
+}
+
+void suscribe_attributes(){
+    bool ok = mqtt.subscribe(TOPIC_ATTRIBUTES_SUB);
+    Serial.print("[MQTT] Subscribe a atributos ok?: ");
+    Serial.println(ok);
 }
 
 

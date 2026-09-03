@@ -145,11 +145,11 @@ void setup() {
     loopMQTT();
 
     // A diferencia de con thermal_control, para el inversor hay que volver a escribir los registros
-    Serial.println("Hola");
     inverter_reinit_from_cloud();
 
     // Se modifica el Callback para adecuarlo a cuando cambian algunos atributos.
     setCallback();
+    suscribe_attributes();
 }
 
 int8_t num_bms_frames = 9;
@@ -161,7 +161,7 @@ int16_t batch_timeout = 1500;
 void loop() {
     // Se chequean tanto la conexion wifi como mqtt
     if (!checkWiFiConnection()) connectWiFi();
-    if (!checkMQTTConnection()) {connectMQTT(); setCallback();}
+    if (!checkMQTTConnection()) {connectMQTT(); setCallback(); suscribe_attributes();}
 
     // Se llama periodicamente a loopMQTT para llamar al callback si atributos cambiaron.
     loopMQTT();

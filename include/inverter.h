@@ -37,6 +37,10 @@
 #define REG_VERSION_START            0
 #define REG_VERSION_COUNT           22
 
+#define BMS_BATTERY_SOC 6003
+#define BMS_BATTERY_SOH 6004
+#define BMS_MAX_CHG_CURRENT 6005
+#define BMS_MAX_DISCHG_CURRENT 6006
 
 struct InitCmd {
     uint16_t    reg;
