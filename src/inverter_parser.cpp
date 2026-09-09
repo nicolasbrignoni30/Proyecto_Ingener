@@ -54,6 +54,9 @@ void inverter_parse_grid(const int16_t* r, int16_t grid_p_raw, GridData& o) {
     // r[4-6]=grid currents A/B/C
     // r[7-9]=grid phase voltages A/B/C
     o.freq_hz = r[0] * SCALE_FREQ_HZ;
+    o.i_a =     r[4] * SCALE_CURRENT_A;
+    o.i_b =     r[5] * SCALE_CURRENT_A;
+    o.i_c =     r[6] * SCALE_CURRENT_A;
     o.v_a     = r[7] * SCALE_VOLTAGE_V;
     o.v_b     = r[8] * SCALE_VOLTAGE_V;
     o.v_c     = r[9] * SCALE_VOLTAGE_V;
@@ -76,4 +79,14 @@ void inverter_parse_load(const int16_t* r, LoadData& o) {
     // r[10-12]=apparent power per phase (not published to TB)
     o.p_total = r[13] * SCALE_POWER_KW;
     o.s_total = r[14] * SCALE_APPARENT_KVA;
+}
+
+void inverter_parse_bms(const int16_t* r, BMSData& o){
+    o.battery_voltage = r[0] * SCALE_VOLTAGE_V;
+    o.battery_current = r[1] * SCALE_CURRENT_A;
+    o.bms_temperature = r[2] * SCALE_TEMPERATURE;
+    o.battery_soc = r[3] * SCALE_SOC_SOH;
+    o.battery_soh = r[4] * SCALE_SOC_SOH;
+    o.capacity = r[20] * SCALE_POWER_KWH;
+    o.power = r[22] * SCALE_POWER_KWH;
 }

@@ -37,6 +37,8 @@
 #define REG_VERSION_START            0
 #define REG_VERSION_COUNT           22
 
+#define REG_BMS_START 6000
+#define REG_BMS_COUNT 23
 #define BMS_BATTERY_SOC 6003
 #define BMS_BATTERY_SOH 6004
 #define BMS_MAX_CHG_CURRENT 6005

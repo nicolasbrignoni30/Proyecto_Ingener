@@ -46,6 +46,7 @@ struct DcData {
 struct GridData {
     float freq_hz;
     float v_a, v_b, v_c;          // phase voltages (V)
+    float i_a, i_b, i_c;
     float p_kw;                    // total active power (kW)
 };
 
@@ -77,6 +78,24 @@ struct FirmData {
     uint32_t fw_rtu_protocol;
 };
 
+struct BMSData{
+    float battery_voltage;
+    float battery_current;
+    float bms_temperature;
+    float battery_soc;
+    float battery_soh;
+    // float max_chg_current;
+    // float max_dischg_current;
+    // float max_chg_power;
+    // float max_dichg_power;
+    // float chg_cutoff_voltage;
+    // float dischg_cutoff_voltage;
+    // float max_single_cell_voltage;
+    // float min_single_cell_voltage;
+    float capacity;
+    float power;
+
+};
 // Unificación por composición en inverter_parser.h
 struct InvData {
     StatusData status;
@@ -85,6 +104,7 @@ struct InvData {
     GridData   grid;
     LoadData   load;
     FirmData   firm;
+    BMSData    bms;
 };
 
 
@@ -95,3 +115,4 @@ void inverter_parse_dc    (const int16_t* raw, DcData&     out);
 void inverter_parse_grid  (const int16_t* raw, int16_t grid_p_raw, GridData& out);
 void inverter_parse_load  (const int16_t* raw, LoadData&   out);
 void inverter_parse_status(const int16_t* raw, StatusData& out);
+void inverter_parse_bms(const int16_t* r, BMSData& out);

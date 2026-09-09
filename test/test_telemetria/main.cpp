@@ -74,12 +74,11 @@ void init(){
     SPI.begin();
     // Se inicializan las uart independientes para el inversor y la alarma.
     INVERTER_SERIAL.begin(INVERTER_BAUD, SERIAL_8N1, INVERTER_RX_PIN, INVERTER_TX_PIN);
-    GAS_SERIAL.begin(GAS_BAUD, SERIAL_8N1, GAS_RX_PIN, GAS_TX_PIN);
-
+    
     inverterInit(INVERTER_SERIAL, INVERTER_DE_RE_PIN);
     bmsCanInit(modoCan);
     connectWiFi();
-    connectMQTT();
+    connectMQTT(Callback_setup);
 }
 
 void init_all_defaults(){
@@ -101,6 +100,7 @@ void publicarTelemetriaInv() {
     publishTelemetryInv(datosInv, "DcData");
     publishTelemetryInv(datosInv, "GridData");
     publishTelemetryInv(datosInv, "LoadData");
+    publishTelemetryInv(datosInv, "BMSData");
 }
 
 
@@ -161,7 +161,13 @@ int16_t batch_timeout = 1500;
 void loop() {
     // Se chequean tanto la conexion wifi como mqtt
     if (!checkWiFiConnection()) connectWiFi();
-    if (!checkMQTTConnection()) {connectMQTT(); setCallback(); suscribe_attributes();}
+    if (!checkMQTTConnection()) {
+        Serial.print("MQTT desconectado, state: ");
+        mqttstate();
+        connectMQTT(Callback_loop);
+        setCallback();
+        suscribe_attributes();
+    }
 
     // Se llama periodicamente a loopMQTT para llamar al callback si atributos cambiaron.
     loopMQTT();
@@ -174,5 +180,15 @@ void loop() {
         LastBmsListen = millis();
         bmsReceiveBatch(&canMsgRx, num_bms_frames, batch_timeout, parser);
         publishTelemetryBMS(bms);
+        Serial.print("El tiempo que demoro en publicar la telemetria del bms es: ");
+        Serial.println(millis() - LastBmsListen);
+    }
+
+    if (millis() - lastPollInv > intervals.poll_modbus_ms){
+        lastPollInv = millis();
+        pollModbus(datosInv);
+        publicarTelemetriaInv();
+        Serial.print("El tiempo que demoro en publicar la telemetria del inversor es: ");
+        Serial.println(millis() - lastPollInv);
     }
 }

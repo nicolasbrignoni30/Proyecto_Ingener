@@ -18,6 +18,11 @@
 
 #define SHARED_KEYS_REQUEST "{\"sharedKeys\":\"heat_enter_c,heat_exit_c,plate_max_c,plate_min_c,cool_on_c,cool_off_c,cool_pot_c,cool_critical_c,dc_max_dischg_current,dc_max_chg_current,anti_backflow_value,grid_sched_mode_value,three_phase_ctrl_mode_value,pv_switch_value,leakage_detect_value,dcdc_switch_value,set_power,power_on_value,listen_bms_ms,poll_modbus_ms,verify_init_ms,poll_gas_alarm_ms\"}"
 
+enum callback_type {
+    Callback_setup,
+    Callback_loop
+};
+
 
 // Estructura de datos para el caso de datos simulados
 struct Sim {
@@ -48,10 +53,14 @@ void telemetria_set_attribute_handler1(const String& key, float value);
 void telemetria_set_attribute_handler2(const String& key, float value);
 
 // Interfaz pública del módulo
+
+void mqttstate();
+
+
 bool checkWiFiConnection();
 void connectWiFi();
 bool checkMQTTConnection();
-void connectMQTT();
+void connectMQTT(callback_type modo);
 void loopMQTT();
 void setCallback();
 void request_attributes();

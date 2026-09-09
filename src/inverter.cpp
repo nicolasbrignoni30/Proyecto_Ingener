@@ -313,6 +313,11 @@ void pollModbus(InvData& inver) {
         inverter_parse_dc(dc_raw, inver.dc);
     } else Serial.println("[Inverter] Error: reg 141-143 (DC)");
 
+    int16_t bms_raw[REG_BMS_COUNT];
+    if (inverterRead(REG_BMS_START, REG_BMS_COUNT, bms_raw)) {
+        inverter_parse_bms(bms_raw, inver.bms);
+    }
+
     int16_t grid_raw[REG_GRID_COUNT];
     int16_t grid_p_raw = 0;
     if (inverterRead(REG_GRID_START, REG_GRID_COUNT, grid_raw) &&

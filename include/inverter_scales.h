@@ -46,3 +46,8 @@
 // Positive = discharge, Negative = charge
 // raw = kW * 10  (i.e. 25.0 kW → 250)
 #define SCALE_SET_POWER_KW  0.1f
+
+
+#define SCALE_TEMPERATURE 0.1f
+#define SCALE_SOC_SOH 0.1f
+#define SCALE_POWER_KWH 0.1f

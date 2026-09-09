@@ -25,7 +25,6 @@ ModoFuncionamiento modoCan = MODO_NORMAL;
 
 can_frame canMsgRx;
 BmsData   bms;
-//InvData   datosInv;
 
 unsigned long Last_time = 0;
 
@@ -46,7 +45,6 @@ void init(){
     SPI.begin();
     // Se inicializan las uart independientes para el inversor y la alarma.
     INVERTER_SERIAL.begin(INVERTER_BAUD, SERIAL_8N1, INVERTER_RX_PIN, INVERTER_TX_PIN);
-    GAS_SERIAL.begin(GAS_BAUD, SERIAL_8N1, GAS_RX_PIN, GAS_TX_PIN);
 
     inverterInit(INVERTER_SERIAL, INVERTER_DE_RE_PIN);
     bmsCanInit(modoCan);
@@ -98,8 +96,20 @@ void loop() {
     if (millis() - Last_time > 5000){
         Last_time = millis();
         bmsReceiveBatch(&canMsgRx, num_bms_frames, batch_timeout, parser);
+
+        Serial.println("------------- Datos bms por el bms ------------");
+        Serial.println(bms.soc_pct);
+        Serial.println(bms.soh_pct);
+        Serial.println(bms.max_charge_a);
+        Serial.println(bms.max_discharge_a);
+
+        // Se llama a la funcion de pasamanos para mandarle al inversor los datos del bms (registros 6000s)
         pasamanos();
+
+        // Hacemos un read a estos registro y printeamos
         inverterRead(BMS_BATTERY_SOC, 4, buffer);
+
+        Serial.println("------------- Datos bms por el inversor ------------");
         Serial.println(buffer[0]);
         Serial.println(buffer[1]);
         Serial.println((float)(buffer[2] * SCALE_CURRENT_A));

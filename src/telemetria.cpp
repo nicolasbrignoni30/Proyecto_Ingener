@@ -102,14 +102,22 @@ bool checkMQTTConnection(){
     return mqtt.connected();
 }
 
+void mqttstate(){
+    Serial.println(mqtt.state());
+}
+
 void setCallback(){
     mqtt.setCallback(onMqttMessage2);
 }
 
-void connectMQTT() {
+void connectMQTT(callback_type modo) {
     mqtt.setServer(TB_HOST, TB_PORT);
     mqtt.setBufferSize(4096);
-    mqtt.setCallback(onMqttMessage1);
+    
+    if (modo == Callback_setup) 
+        mqtt.setCallback(onMqttMessage1);
+    else if (modo == Callback_loop)     
+        mqtt.setCallback(onMqttMessage2);
     
     String clientId = "ESP32_test_tb_" + String((uint32_t)ESP.getEfuseMac(), HEX);
 
@@ -164,11 +172,24 @@ void publishTelemetryInv(const InvData& inv, const std::string& campo) {
         doc["dc_i"]      = inv.dc.current_a;
         
     } else if (campo == "GridData") {
-        doc["grid_freq"] = inv.grid.freq_hz;
+        doc["grid_freq_hz"] = inv.grid.freq_hz;
         doc["grid_v_a"]  = inv.grid.v_a;
+        doc["grid_v_b"] = inv.grid.v_b;
+        doc["grid_v_c"] = inv.grid.v_c;
+        doc["grid_i_a"] = inv.grid.i_a;
+        doc["grid_i_b"] = inv.grid.i_b;
+        doc["grid_i_c"] = inv.grid.i_c;
         doc["grid_p_kw"] = inv.grid.p_kw;
         
-    } else if (campo == "LoadData") {
+    } else if (campo == "BMSData") {
+        doc["voltaje_6000"] = inv.bms.battery_voltage;
+        doc["current_6001"] = inv.bms.battery_current;
+        doc["bms_temperature_6002"] = inv.bms.bms_temperature;
+        doc["battery_soc_6003"] = inv.bms.battery_soc;
+        doc["battery_soh_6004"] = inv.bms.battery_soh;
+        doc["capacity_6020"] = inv.bms.capacity;
+        doc["power_6022"] = inv.bms.power;
+    }else if (campo == "LoadData") {
 #ifdef INVERTER_PROTOCOL_V3
         doc["load_p_kw"] = inv.load.p_total;
         doc["load_s_kva"]= inv.load.s_total;
@@ -185,9 +206,9 @@ void publishTelemetryInv(const InvData& inv, const std::string& campo) {
 
     // Si el campo fue válido y agregamos datos al JSON, serializamos y publicamos
     if (campoValido) {
-        char payload[512];
+        char payload[1024];
         serializeJson(doc, payload, sizeof(payload));
-        Serial.printf("[MQTT] Payload %d bytes\n", strlen(payload));
+        //Serial.printf("[MQTT] Payload %d bytes\n", strlen(payload));
         bool ok = mqtt.publish(TOPIC_TELEMETRY, payload);
         if (!ok) {
             Serial.println("[MQTT] Inv Publish failed");
@@ -246,7 +267,7 @@ void publishTelemetryBMS(const BmsData& datosBms){
 
     char payload[2048];
     serializeJson(doc, payload, sizeof(payload));
-    Serial.printf("[MQTT] Payload %d bytes\n", strlen(payload));
+    //Serial.printf("[MQTT] Payload %d bytes\n", strlen(payload));
     bool ok = mqtt.publish(TOPIC_TELEMETRY, payload);
     if (!ok) {
         Serial.println("[MQTT] BMS Publish failed");
