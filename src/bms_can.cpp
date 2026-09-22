@@ -63,9 +63,9 @@ void bmsCanInit(ModoFuncionamiento modo) {
 }
 
 
-byte bmsSend(canid_t ID, __u8* bytes, __u8 length, can_frame* ptr_msg) {
+void bmsSend(canid_t ID, __u8* bytes, __u8 length, can_frame* ptr_msg) {
     mkMsg(ID, bytes, length, ptr_msg);
-    return mcp2515.sendMessage(ptr_msg);
+    mcp2515.sendMessage(ptr_msg);
 }
 
 bool bmsReceive(can_frame* ptr_msg) {

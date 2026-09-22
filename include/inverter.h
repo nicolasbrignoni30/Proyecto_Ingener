@@ -43,6 +43,8 @@
 #define BMS_BATTERY_SOH 6004
 #define BMS_MAX_CHG_CURRENT 6005
 #define BMS_MAX_DISCHG_CURRENT 6006
+#define BMS_MAX_CHG_POWER 6007
+#define BMS_MAX_DISCHG_POWER 6008
 
 struct InitCmd {
     uint16_t    reg;

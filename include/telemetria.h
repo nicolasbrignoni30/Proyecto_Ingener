@@ -67,6 +67,7 @@ void request_attributes();
 void suscribe_attributes();
 void publishTelemetryBMS(const BmsData& datosBms);
 void publishTelemetryInv(const InvData& inv, const std::string& campo);
+void publishTelemetrySensor(float temperature, float humidity);
 void publishCoolingAttributes(bool bajar_pot, bool shut_down);
 void updateSim(Sim& sim);
 void publishTelemetrySim(const Sim& data);

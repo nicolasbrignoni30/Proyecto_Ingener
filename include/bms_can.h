@@ -17,6 +17,6 @@ enum ModoFuncionamiento {
 // Interfaz del Módulo CAN (Funciones públicas)
 // ---------------------------------------------------------------------------
 void bmsCanInit(ModoFuncionamiento modo);                    
-byte bmsSend(can_frame* ptr_msg);
+void bmsSend(canid_t ID, __u8* bytes, __u8 length, can_frame* ptr_msg);
 bool bmsReceive(can_frame* ptr_msg);
 bool bmsReceiveBatch(can_frame* ptr_msg, uint8_t num_frames, unsigned long timeout_ms, void (*onFrame)(can_frame*));

@@ -85,12 +85,12 @@
 // Control térmico de baterías — ventiladores y heating plates
 // ---------------------------------------------------------------------------
 // Relé de ventiladores — un GPIO controla los 4 ventiladores juntos (circuito ya validado)
-#define FAN_RELAY_PIN         14
+#define FAN_RELAY_PIN         12
  
 // Relé(s) de heating plates — un GPIO controla ambas plaquetas juntas
 // TODO: confirmar si es realmente un solo pin para las dos, o hace falta un
 // segundo GPIO porque a veces se controlan por separado.
-#define HEATING_RELAY_PIN     12
+#define HEATING_RELAY_PIN     14
  
 
 // Aca van los valores default para los umbrales de temperatura

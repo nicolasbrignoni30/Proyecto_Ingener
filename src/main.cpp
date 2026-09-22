@@ -94,7 +94,7 @@ void init(){
     dhtInit(DHT_PIN);
     gasAlarmInit(GAS_SERIAL, GAS_DE_RE_PIN);
     connectWiFi();
-    connectMQTT();
+    connectMQTT(Callback_setup);
 }
 
 void init_all_defaults(){
@@ -158,19 +158,17 @@ void setup() {
 
     // Se piden los atributos 
     request_attributes();
-    delay(6000); // Este pequeño delay es para que lleguen bien las cosas
+    delay(8000); // Este pequeño delay es para que lleguen bien las cosas
 
     // Se llama a loopMQTT()
     loopMQTT();
-
-    Serial.println("[MAIN] Setup finalizado con exito. Corriendo lazo...");
-    Serial.println("--------------------------------------------------");
 
     // A diferencia de con thermal_control, para el inversor hay que volver a escribir los registros
     inverter_reinit_from_cloud();
 
     // Se modifica el Callback para adecuarlo a cuando cambian algunos atributos.
     setCallback();
+    suscribe_attributes();
 }
 
 int8_t num_bms_frames = 9;
@@ -182,7 +180,7 @@ int16_t batch_timeout = 1500;
 void loop() {
     // Se chequean tanto la conexion wifi como mqtt
     if (!checkWiFiConnection()) connectWiFi();
-    if (!checkMQTTConnection()) {connectMQTT(); setCallback();}
+    if (!checkMQTTConnection()) {connectMQTT(Callback_loop); setCallback();}
 
     // Se llama periodicamente a loopMQTT para llamar al callback si atributos cambiaron.
     loopMQTT();
@@ -208,10 +206,22 @@ void loop() {
     if (millis() - lastPollGasAlarm > intervals.poll_gas_alarm_ms){
         lastPollGasAlarm  = millis();
         gasAlarmReadAll(G_alarm);
+
+        // Se imprimen los valores del sensor de alarma, si todo marcha, se pueden mandar por telemetria
+        Serial.println("----------- Valores gas alarm --------------");
+        Serial.print(G_alarm.alarm1_point);
+        Serial.print(G_alarm.alarm2_point);
+        Serial.print(G_alarm.range);
+        Serial.print(G_alarm.resolution);
+        Serial.print(G_alarm.unit);
+        Serial.print(G_alarm.gas_type);
+        Serial.print(G_alarm.concentration);
+        Serial.print(G_alarm.alarm_status);
     }
 
     // Se leen los datos del sensor
     T_sensor = dhtRead();
+    publishTelemetrySensor(T_sensor.temperature_c, T_sensor.humidity_pct);
 
     if (thermalControlUpdate(millis(), bms.temp_cell_min_c, bms.temp_cell_max_c, T_sensor.temperature_c, publicarEstadoCooling)){
         inverterWrite(REG_SHUTDOWN, 1);

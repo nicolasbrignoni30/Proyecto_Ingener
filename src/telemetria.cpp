@@ -189,7 +189,7 @@ void publishTelemetryInv(const InvData& inv, const std::string& campo) {
         doc["battery_soh_6004"] = inv.bms.battery_soh;
         doc["capacity_6020"] = inv.bms.capacity;
         doc["power_6022"] = inv.bms.power;
-    }else if (campo == "LoadData") {
+    } else if (campo == "LoadData") {
 #ifdef INVERTER_PROTOCOL_V3
         doc["load_p_kw"] = inv.load.p_total;
         doc["load_s_kva"]= inv.load.s_total;
@@ -275,8 +275,28 @@ void publishTelemetryBMS(const BmsData& datosBms){
 }
 
 
+//#########################################
+// Esto se corresponde con el sensor DHT22
+//#########################################
+
+void publishTelemetrySensor(float temperature, float humidity){
+    JsonDocument doc;
+
+    doc["temp_amb"] = temperature;
+    doc["hum_amb"] = humidity;
+
+    char payload[128];
+    serializeJson(doc, payload, sizeof(payload));
+    //Serial.printf("[MQTT] Payload %d bytes\n", strlen(payload));
+    bool ok = mqtt.publish(TOPIC_TELEMETRY, payload);
+    if (!ok) {
+        Serial.println("[MQTT] DHT sensor Publish failed");
+    }
+}
+
+
 //####################################################################
-// Esto es para avisarle a thingboard el valor de temperatura ambiente
+// Esto es para avisarle a thingboard que baje la potencia
 //####################################################################
 
 void publishCoolingAttributes(bool bajar_pot, bool shut_down) {
