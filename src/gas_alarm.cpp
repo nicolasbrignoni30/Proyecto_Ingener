@@ -1,4 +1,5 @@
 #include "gas_alarm.h"
+#include "gas_parser.h"
 #include "config.h"
 #include <ModbusMaster.h>
 

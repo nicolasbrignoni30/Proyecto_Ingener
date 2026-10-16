@@ -102,7 +102,7 @@
 #define DEFAULT_TEMP_COOL_ON_C        40.0f
 #define DEFAULT_TEMP_COOL_OFF_C       30.0f
 #define DEFAULT_TEMP_COOL_POT         55.0f
-#define DEFAULT_TEMP_COOL_CRITICAL_C       60.0f
+#define DEFAULT_TEMP_COOL_CRITICAL_C  60.0f
 
 
 // Si hace falta se pueden considerar timeouts pero hay que estudiarlos con cuidado
@@ -116,5 +116,12 @@
 // #define HEATING_ON_MS        (HEATING_ON_MIN     * 60UL * 1000UL)
 // #define HEATING_OFF_MS       (HEATING_OFF_MIN    * 60UL * 1000UL)
 // #define HEATING_TIMEOUT_MS   (HEATING_TIMEOUT_MIN * 60UL * 1000UL)
+
+
+#define DEFAULT_LIMIT_POT   10.0f   // kW que se toman de la red (atributo limit_pot)
+#define SOC_INICIO_CARGA    90.0f   // por debajo, se carga la batería desde la red
+#define SOC_FIN_CARGA       95.0f   // al llegar, se deja de cargar
+#define SOC_RESERVA         20.0f   // por debajo, no se descarga más la batería
+#define SOC_FIN_RESERVA     25.0f   // la reserva se libera recién acá
  
  

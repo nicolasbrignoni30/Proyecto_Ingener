@@ -46,6 +46,28 @@
 #define BMS_MAX_CHG_POWER 6007
 #define BMS_MAX_DISCHG_POWER 6008
 
+// ---------------------------------------------------------------------------
+// Agregados (protocolo PCS V2.0)
+// ---------------------------------------------------------------------------
+
+// Escritura cada ~10 s, como el EMS. Escribirlos al arrancar, ANTES que los 6000s
+#define REG_BMS_MASTER_SLAVE       329   // 0 maestro · 1 esclavo: el inversor toma los datos de 6000–6022
+#define REG_BMS_POWER_SCHED        334   // 1 = potencia limitada según el BMS
+#define REG_OFFGRID_PWR_REG        351   // el EMS escribe 2 (valor no documentado)
+
+// Lectura de configuración pendiente (no cruzar segmentos: 300–330 y 331–354)
+#define REG_BMS_TIMEOUT            324   // s, 0 = deshabilitado (por defecto 10)
+#define REG_BMS_PROTOCOL           330   // protocolo del BMS
+#define REG_EMS_TIMEOUT            331   // 0,1 s, 0 = deshabilitado
+#define REG_EMS_TIMEOUT_ACTION     339   // 0 standby · 1 apagado al vencer el timeout
+
+// Modo isla / EPS (respuesta del fabricante). No usar hasta confirmar con ellos
+#define REG_GRID_CONNECT_CMD       653   // 1 = pasar a red (solo con 655 = 1)
+#define REG_OFFGRID_CMD            654   // 1 = pasar a isla (solo con 655 = 1)
+#define REG_DISABLE_AUTO_OFFGRID   655   // 1 = sin pase automático a isla; 0 no hace nada
+#define REG_SAVE_PARAMS            659   // 1 = guardar parámetros
+#define REG_ANTI_ISLANDING         790   // 0 off · 1 on (hoy está en 0)
+
 struct InitCmd {
     uint16_t    reg;
     int16_t     val;
@@ -65,18 +87,8 @@ struct inverterValues{
     int16_t power_on_value;
 };
 
-#define MAX_PENDING_WRITES 10
-
-struct PendingWrite {
-    bool        activo;
-    uint16_t    reg;
-    int16_t     value;
-    const char* nombre;
-};
-
-extern PendingWrite pendingWrites[MAX_PENDING_WRITES];
-
 extern inverterValues inverter_values;
+extern float limit_pot;
 
 bool inverterWrite(uint16_t reg, int16_t value);
 bool inverterRead(uint16_t reg, uint16_t count, int16_t* out);
@@ -84,6 +96,7 @@ void inverterInit(HardwareSerial& serial, uint8_t deRePin);
 void inverter_init_defaults();
 void inverter_reinit_from_cloud();
 void inverter_update_reg_values(const String& key, float value);
+void inverter_update_limit_pot(const String& key, float value);
 void inverter_queue_write(const String& key, float value);
 void inverter_process_pending_writes();
 void verifyAndReinit();

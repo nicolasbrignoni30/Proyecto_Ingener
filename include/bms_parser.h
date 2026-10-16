@@ -31,11 +31,13 @@ struct BmsData {
     float    cell_voltage_min_v;  // min cell voltage (V)
 
     // — Status flags —
-    bool     charging;            // BMS in charging state
-    bool     discharging;         // BMS in discharging state
-    bool     charge_forbidden;    // charge MOSFET off → charging forbidden
-    bool     discharge_forbidden; // discharge MOSFET off → discharging forbidden
-    bool     force_charge_req;    // low SOC alarm → force charge request
+    bool     sleep;
+    bool     charging;                  // BMS in charging state
+    bool     discharging;               // BMS in discharging state
+    bool     balance_charge_request;
+    bool     charge_forbidden;          // charge MOSFET off → charging forbidden
+    bool     discharge_forbidden;       // discharge MOSFET off → discharging forbidden
+    bool     force_charge_req;          // low SOC alarm → force charge request
 
     // — Diagnostics —
     uint8_t  fault;               // fault byte

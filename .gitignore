@@ -5,4 +5,4 @@
 .vscode/ipch
 
 # Credenciales y datos sensibles
-esp32/include/credentials.h
+include/credentials.h

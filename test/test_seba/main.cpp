@@ -18,7 +18,7 @@ struct Intervals {
 // Funcionamiento del MCP2515
 ModoFuncionamiento modoCan = MODO_NORMAL;
 
-can_frame canMsgRx;
+can_frame rx;
 BmsData   bms;
 
 unsigned long LastBmsListen = 0;
@@ -137,7 +137,41 @@ void loop() {
     // Se reciben los 9 frames que envia el bms se parsea lo importante y se envia a thingsboard
     if (millis() - LastBmsListen > intervals.listen_bms_ms){
         LastBmsListen = millis();
-        bmsReceiveBatch(&canMsgRx, num_bms_frames, batch_timeout, parser);
+        bmsReceiveBatch(&rx, num_bms_frames, batch_timeout, parser);
         publishTelemetryBMS(bms);
+    }
+
+    if (Serial.available() > 0){
+        char tecla = Serial.read();
+
+        switch (tecla) {
+            case 's':
+                Serial.println("Se manda a domrir al BMS");
+                id = 0x80008201;
+                datos[7] = 0x55;
+                datos[0] = 0x55;
+                bmsSend(id, datos, dlc, &tx);
+                break;
+            case 'a':
+                Serial.println("Se despierta al BMS");
+                id = 0x80008201;
+                datos[7] = 0xAA;
+                datos[0] = 0xAA;
+                bmsSend(id, datos, dlc, &tx);
+                break;
+            case 'd':
+                Serial.println("Se le pide datos al BMS");
+                id = 0x80004200;
+                datos[0] = 0;
+                datos[7] = 0;
+                bmsSend(id, datos, dlc, &tx);
+                break;
+            case '\r':
+            case '\n':
+                break;
+            default:
+                break;
+
+        }
     }
 }

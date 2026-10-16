@@ -86,6 +86,8 @@ void bms_parse_can(uint16_t base, const __u8* data, BmsData& bms) {
             bms.force_charge_req = ((data[0] >> 3) & 1) == 1;
             bms.charging = ((data[0] & 0x07) == 1);
             bms.discharging = ((data[0] & 0x07) == 2);
+            bms.sleep = ((data[0] & 0x07) == 0);
+            bms.balance_charge_request = ((data[0] & 0x10) == 1);
             break;
 
         case 0x4280:

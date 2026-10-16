@@ -226,15 +226,15 @@ void publishTelemetryBMS(const BmsData& datosBms){
     //Estos corresponden al 0x421x  
     doc["bms_voltage_v"] = datosBms.voltage_v;
     doc["bms_current_a"] = datosBms.current_a;
-    doc["bms_temp_avg_c"] = datosBms.temp_avg_c;    
+    //doc["bms_temp_avg_c"] = datosBms.temp_avg_c;    
     doc["bms_soc_pct"] = datosBms.soc_pct;
     doc["bms_soh_pct"] = datosBms.soh_pct;
 
     //Estos corresponden al 0x422x
-    doc["charge_cutoff_v"] = datosBms.charge_cutoff_v;
-    doc["discharge_cutoff_v"] = datosBms.discharge_cutoff_v;
-    doc["max_charge_a"] = datosBms.max_charge_a;
-    doc["max_discharge_a"] = datosBms.max_discharge_a;
+    //doc["charge_cutoff_v"] = datosBms.charge_cutoff_v;
+    //doc["discharge_cutoff_v"] = datosBms.discharge_cutoff_v;
+    //doc["max_charge_a"] = datosBms.max_charge_a;
+    //doc["max_discharge_a"] = datosBms.max_discharge_a;
 
     //Estos corresponden al 0x423x
     doc["cell_voltage_max_v"] = datosBms.cell_voltage_max_v;
@@ -243,27 +243,28 @@ void publishTelemetryBMS(const BmsData& datosBms){
     //Estos corresponden al 0x424x
     doc["temp_cell_max_c"] = datosBms.temp_cell_max_c;
     doc["temp_cell_min_c"] = datosBms.temp_cell_min_c;
-    doc["battery_cell_temp_num_max"] = datosBms.battery_cell_temp_num_max;
-    doc["battery_cell_temp_num_min"] = datosBms.battery_cell_temp_num_min;
+    //doc["battery_cell_temp_num_max"] = datosBms.battery_cell_temp_num_max;
+    //doc["battery_cell_temp_num_min"] = datosBms.battery_cell_temp_num_min;
 
     //Estos corresponden al 0x425x
-    doc["fault"] = datosBms.fault;
-    doc["alarm"] = datosBms.alarm;
-    doc["protection"] = datosBms.protection;
+    //doc["fault"] = datosBms.fault;
+    //doc["alarm"] = datosBms.alarm;
+    //doc["protection"] = datosBms.protection;
+    doc["sleep"] = datosBms.sleep;
     doc["charging"] = datosBms.charging;
     doc["discharging"] = datosBms.discharging;
-    doc["force_charge_req"] = datosBms.force_charge_req;
+    doc["balace_charge_request"] = datosBms.balance_charge_request;
+    //doc["force_charge_req"] = datosBms.force_charge_req;
 
     //Estos correcponden al 00x428x
-    doc["soe_pct"] = datosBms.soe_pct;
+    //doc["soe_pct"] = datosBms.soe_pct;
 
     //Quedan temp_fet_c, charge_forbidden y discharge_forbidden
     //los ultimos dos los encontre en ex428x pero no son bool sino una mark que es 0xAA.
     //Igualmente lo agrego aca, pero en el .ccp del parseo les agrego valores basura, hay que verlo bien despues.
 
-    doc["charging_forbidden"] = datosBms.charge_forbidden;
-    doc["discharging_forbidden"] = datosBms.discharge_forbidden;
-    doc["temp_fet_c"] = datosBms.temp_fet_c;
+    //doc["charging_forbidden"] = datosBms.charge_forbidden;
+    //doc["discharging_forbidden"] = datosBms.discharge_forbidden;
 
     char payload[2048];
     serializeJson(doc, payload, sizeof(payload));
