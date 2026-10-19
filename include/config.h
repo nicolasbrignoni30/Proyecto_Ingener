@@ -117,8 +117,12 @@
 // #define HEATING_OFF_MS       (HEATING_OFF_MIN    * 60UL * 1000UL)
 // #define HEATING_TIMEOUT_MS   (HEATING_TIMEOUT_MIN * 60UL * 1000UL)
 
+#define DEFAULT_LIMIT_POWER 0.0f
+#define DEFAULT_I_MAX 10.0f
+#define DEFAULT_I_MIN 1.0f
+#define DEFAULT_V1 3.2f
+#define DEFAULT_V2 3.4f
 
-#define DEFAULT_LIMIT_POT   10.0f   // kW que se toman de la red (atributo limit_pot)
 #define SOC_INICIO_CARGA    90.0f   // por debajo, se carga la batería desde la red
 #define SOC_FIN_CARGA       95.0f   // al llegar, se deja de cargar
 #define SOC_RESERVA         20.0f   // por debajo, no se descarga más la batería

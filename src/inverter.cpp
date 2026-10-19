@@ -23,7 +23,6 @@
 static ModbusMaster inv;
 
 inverterValues inverter_values; 
-float limit_pot;
 
 namespace{
 
@@ -158,10 +157,6 @@ void inverter_update_reg_values(const String& key, float value) {
     else if (key == "set_power")                    inverter_values.set_power = value;
     else if (key == "power_on_value")               inverter_values.power_on_value = value;
     else return; // key que no le corresponde a este módulo, se ignora
-}
-
-void inverter_update_limit_pot(const String& key, float value){
-    if (key == "limit_pot") limit_pot = value;
 }
 
 

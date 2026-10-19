@@ -49,6 +49,7 @@ unsigned long lastPollInv = 0;
 unsigned long lastVerifyInv = 0;
 unsigned long LastBmsListen = 0;
 unsigned long lastPollGasAlarm = 0;
+unsigned long lastReconexion = 0;
 
 // Globales, arriba de setup() y loop()
 bool          primera_vez        = true;   // fuerza 329/334/351 en la primera vuelta
@@ -66,6 +67,16 @@ __u8 datos[8] = {0,0,0,0,0,0,0,0};
 
 
 // ---------------------------------------------------------------------------
+// Variables (atributos compartidas) definidas en el Main
+// ---------------------------------------------------------------------------
+
+float limit_power;
+float I_MAX;
+float I_MIN;
+float V1;
+float V2;
+
+// ---------------------------------------------------------------------------
 // Control del inversor
 // ---------------------------------------------------------------------------
 
@@ -75,57 +86,67 @@ Estado STATE = IDLE;
 bool grid_ok = false;           // reg 32: b3 = 1 (con red) y b4 = 0 (no isla)
 bool inv_ok  = false;           // reg 32: b2 = 1 (encendido) y b0 = 0 (sin falla)
 bool apagado_termico = false;   // lo pide thermal_control
+bool safe_mode = false;
 unsigned long lastCicloInv = 0;
 
-// Valor físico -> valor crudo del registro (ej: 95.5 % con escala 0.1 -> 955)
-int16_t aRegistro(float valor, float escala) {
-    return (int16_t)lroundf(valor / escala);
-}
 
-// 1) Lee el reg 32 y publica grid_ok si cambió. Devuelve false si el inversor no respondió.
+// Lee el reg 32 y publica grid_ok si cambió. Devuelve false si el inversor no respondió.
+// Si mas de cinco veces seguidas no se puedo leer el inversor se pasan los booleanos a false
 bool leerEstadoInversor() {
     static uint8_t fallas = 0;
-    static int8_t  grid_publicado = -1;          // -1: todavía no se publicó
+    static int8_t  grid_publicado = -1;
+    static int8_t  inv_publicado  = -1;
     int16_t reg_32;
 
-    if (inverterRead(REG_STATUS, REG_STATUS_COUNT, &reg_32)) {
+    bool respondio = inverterRead(REG_STATUS, REG_STATUS_COUNT, &reg_32);
+
+    if (respondio) {
         fallas  = 0;
-        grid_ok = (reg_32 & 0x0008) && !(reg_32 & 0x0010);
-        inv_ok  = (reg_32 & 0x0004) && !(reg_32 & 0x0001);
+        grid_ok = (reg_32 & 0x0008) && !(reg_32 & 0x0010);   // b3 = con red, b4 = isla
+        inv_ok  = (reg_32 & 0x0004) && !(reg_32 & 0x0001);   // b2 = encendido, b0 = falla
     } else {
         if (fallas < 5) fallas++;
-        if (fallas < 5) return false;            // fallas sueltas: no se cambia nada
-        grid_ok = false;                         // 5 seguidas: se avisa que no hay red
-        inv_ok  = false;
+        if (fallas == 5) {               // 5 seguidas sin respuesta: se asume que no hay red
+            grid_ok = false;
+            inv_ok  = false;
+        }
     }
 
-    if (grid_ok != grid_publicado && publishGridOk(grid_ok)) grid_publicado = grid_ok;
-    return fallas == 0;
-}
-
-// 2) Máquina de estados
-void actualizarEstado() {
-    switch (STATE) {
-        case IDLE:
-            if      (vehiculo_conectado)                        STATE = CHARGING_VEHICLE;
-            else if (grid_ok && bms.soc_pct < SOC_INICIO_CARGA) STATE = CHARGING_BATTERY;
-            break;
-
-        case CHARGING_VEHICLE:
-            if (!vehiculo_conectado)                            STATE = IDLE;
-            break;
-
-        case CHARGING_BATTERY:
-            if      (vehiculo_conectado)                        STATE = CHARGING_VEHICLE;
-            else if (!grid_ok || bms.soc_pct >= SOC_FIN_CARGA)  STATE = IDLE;
-            break;
+    // Se publica si respondió o si ya van 5 fallas. Una falla suelta no se publica.
+    if (respondio || fallas == 5) {
+        if (grid_ok != grid_publicado && publish_attribute("grid_ok", grid_ok)) grid_publicado = grid_ok;
+        if (inv_ok  != inv_publicado  && publish_attribute("inv_ok",  inv_ok))  inv_publicado  = inv_ok;
     }
+
+    return respondio;   // true solo si el inversor contestó: el loop escribe solo en ese caso
 }
 
-// 3) Escribe lo mismo que el EMS original: todo cada 1 s y 329/334/351 cada 10 s.
+
+// Escribe lo mismo que el EMS original: todo cada 1 s y 329/334/351 cada 10 s.
 void escribirInversor() {
     static uint8_t ciclo   = 0;
-    static bool    reserva = false;
+    static float I_chg = 0;
+    bool apagar = false;
+
+    apagar = apagado_termico || safe_mode;
+
+    if (STATE == IDLE){
+        I_chg = 0.0;
+    }else{ // CHARGING_VEHICLE o CHARGING_BATTERY
+        if (bms.soc_pct == 100){ // Si llego al 100% se detiene la carga
+            I_chg = 0.0;
+        }else{
+            if (bms.cell_voltage_max_v <= V1){
+                I_chg = I_MAX;
+            }
+            else if (bms.cell_voltage_max_v <= V2){
+                I_chg = I_MAX * ((V2 - bms.cell_voltage_max_v) / (V2 - V1));
+            }
+                else if (I_chg <= I_MIN || bms.cell_voltage_max_v > V2){
+                    I_chg = I_MIN;
+                }
+        }
+    }
 
     // Cada 10 s (y en el primer ciclo). Sin 329/334 el inversor no acepta los 6000.
     if (ciclo == 0) {
@@ -135,30 +156,33 @@ void escribirInversor() {
     }
     if (++ciclo >= 10) ciclo = 0;
 
-    // Reserva con histéresis: mientras dura, no se descarga la batería
-    if      (bms.soc_pct <= SOC_RESERVA)     reserva = true;
-    else if (bms.soc_pct >= SOC_FIN_RESERVA) reserva = false;
-
-    bool llena  = bms.soc_pct >= 100.0f;
-    bool apagar = apagado_termico || (reserva && !grid_ok);   // en isla con reserva: se apaga
-
-    // 353: cargando (vehículo o batería) se toman limit_pot kW de la red (negativo = importar).
-    // En IDLE, apagado o en isla: 0.
-    float setpoint_kw = (STATE != IDLE && inv_ok && grid_ok) ? -limit_pot : 0.0f;
+    float setpoint_kw = (STATE != IDLE && inv_ok && grid_ok) ? -limit_power : 0.0f;
 
     // Cada 1 s, en el mismo orden que el EMS
     inverterWrite(apagar ? REG_SHUTDOWN : REG_POWER_ON, 1);
-    inverterWrite(BMS_BATTERY_SOC,           aRegistro(bms.soc_pct, SCALE_SOC_SOH));
-    inverterWrite(BMS_MAX_CHG_CURRENT,       llena   ? 0 : aRegistro(bms.max_charge_a,    SCALE_CURRENT_A));
-    inverterWrite(BMS_MAX_DISCHG_CURRENT,    reserva ? 0 : aRegistro(bms.max_discharge_a, SCALE_CURRENT_A));
-    inverterWrite(REG_DC_MAX_DISCHG_CURRENT, reserva ? 0 : aRegistro(inverter_values.dc_max_dischg_current, SCALE_CURRENT_A));
-    inverterWrite(REG_DC_MAX_CHG_CURRENT,    llena   ? 0 : aRegistro(inverter_values.dc_max_chg_current,    SCALE_CURRENT_A));
+    inverterWrite(BMS_BATTERY_SOC,           bms.soc_pct / SCALE_SOC_SOH);
+    inverterWrite(BMS_MAX_CHG_CURRENT,       (int16_t)(bms.max_charge_a / SCALE_CURRENT_A));
+    inverterWrite(BMS_MAX_DISCHG_CURRENT,    (int16_t)(bms.max_discharge_a / SCALE_CURRENT_A));
+    inverterWrite(REG_DC_MAX_CHG_CURRENT,    (int16_t)(I_chg / SCALE_CURRENT_A));
+    inverterWrite(REG_DC_MAX_DISCHG_CURRENT, bms.soc_pct < SOC_RESERVA ? 0 : (int16_t)(bms.max_discharge_a / SCALE_CURRENT_A));
     inverterWrite(REG_3PHASE_CTRL_MODE,      inverter_values.three_phase_ctrl_mode_value);
     inverterWrite(REG_PV_SWITCH,             inverter_values.pv_switch_value);
     inverterWrite(REG_ANTI_BACKFLOW,         inverter_values.anti_backflow_value);
     inverterWrite(REG_LEAKAGE_DETECT,        inverter_values.leakage_detect_value);
     inverterWrite(REG_DCDC_SWITCH,           inverter_values.dcdc_switch_value);
-    inverterWrite(REG_SET_POWER,             aRegistro(setpoint_kw, SCALE_SET_POWER_KW));
+    inverterWrite(REG_SET_POWER,             (int16_t)(setpoint_kw /  SCALE_SET_POWER_KW));
+}
+
+// Máquina de estados
+void actualizarEstado() {
+    switch (STATE) {
+        case IDLE:
+            break;
+        case CHARGING_VEHICLE:
+            break;
+        case CHARGING_BATTERY:
+            break;
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -185,11 +209,16 @@ void parser(can_frame* ptr_msg){
 // Funciones de Inicializacion
 // ---------------------------------------------------------------------------
 
-void init_intervals() {
+void init_defaults_main() {
     intervals.listen_bms_ms  = DEFAULT_LISTEN_BMS_MS;
     intervals.poll_modbus_ms = DEFAULT_POLL_MODBUS_MS;
     intervals.verify_init_ms = DEFAULT_VERIFY_INIT_MS;
     intervals.poll_gas_alarm_ms = DEFAULT_GAS_ALARM_MS;
+    limit_power = DEFAULT_LIMIT_POWER;
+    I_MAX = DEFAULT_I_MAX;
+    I_MIN = DEFAULT_I_MIN;
+    V1 = DEFAULT_V1;
+    V2 = DEFAULT_V2;
 }
 
 void init(){
@@ -203,13 +232,13 @@ void init(){
     dhtInit(DHT_PIN);
     gasAlarmInit(GAS_SERIAL, GAS_DE_RE_PIN);
     connectWiFi();
-    connectMQTT(Callback_setup);
+    connectMQTT();
 }
 
 void init_all_defaults(){
     inverter_init_defaults();
     thermal_thresholds_init_defaults();
-    init_intervals();
+    init_defaults_main();
 };
 
 // ---------------------------------------------------------------------------
@@ -226,31 +255,27 @@ void publicarTelemetriaInv() {
     publishTelemetryInv(datosInv, "AcData");
     publishTelemetryInv(datosInv, "DcData");
     publishTelemetryInv(datosInv, "GridData");
-    publishTelemetryInv(datosInv, "LoadData");
+    //publishTelemetryInv(datosInv, "LoadData"); //Esto da problemas pues JSON envia null
     publishTelemetryInv(datosInv, "BMSData");
 }
 
 
-void intervals_update(const String& key, float value) {
-    if      (key == "listen_bms_ms")  intervals.listen_bms_ms  = (uint32_t)value;
+void shared_attributes_update(const String& key, float value) {
+    inverter_update_reg_values(key, value);
+    thermal_update_threshold(key, value);
+
+    if (key == "limit_power")  limit_power  = value;
+    else if (key == "I_MAX") I_MAX = value;
+    else if (key == "I_MIN") I_MIN = value;
+    else if (key == "V1") V1 = value;
+    else if (key == "V2") V2 = value;
+    
+    // --- intervalos de tiempo ---
+    else if (key == "listen_bms_ms")  intervals.listen_bms_ms  = (uint32_t)value;
     else if (key == "poll_modbus_ms") intervals.poll_modbus_ms = (uint32_t)value;
     else if (key == "verify_init_ms") intervals.verify_init_ms = (uint32_t)value;
     else if (key == "poll_gas_alarm_ms") intervals.poll_gas_alarm_ms = (uint32_t)value;
     else return;
-}
-
-// Las funciones a continuacion se definen aca pero son las que se pasan en los callbacks definidos en el modulo de telemetria.
-
-void telemetria_set_attribute_handler1(const String& key, float value) {
-    thermal_update_threshold(key, value);
-    inverter_update_reg_values(key, value);
-    intervals_update(key, value);
-}
-
-void telemetria_set_attribute_handler2(const String& key, float value) {
-    thermal_update_threshold(key, value);
-    inverter_update_limit_pot(key,value);
-    intervals_update(key, value);
 }
 
 
@@ -276,11 +301,7 @@ void setup() {
 
     // A diferencia de con thermal_control, para el inversor hay que volver a escribir los registros
     inverter_reinit_from_cloud();
-
-    // Se modifica el Callback para adecuarlo a cuando cambian algunos atributos.
-    setCallback();
-    suscribe_attributes();
-
+  
     // Se envia el frame que hace que el bms comience a mandar periodicamente sus paquetes
     bmsSend(id, datos, dlc, &tx);
 }
@@ -291,21 +312,19 @@ int16_t reg_32 = 0;
 
 // Se definen flags a usar en el bucle principal
 bool vehiculo_conectado = false;
-bool grid_ok = true;
-bool pot_menor_20k_send = false;
+
 
 // ---------------------------------------------------------------------------
 // Loop
 // ---------------------------------------------------------------------------
 void loop() {
     // Se chequean tanto la conexion wifi como mqtt
-    if (!checkWiFiConnection()) connectWiFi();
-    if (!checkMQTTConnection()) {
+    if (!checkMQTTConnection() && checkWiFiConnection() && millis() - lastReconexion > 30000) {
+        lastReconexion = millis();
         Serial.print("MQTT desconectado, state: ");
         mqttstate();
-        connectMQTT(Callback_loop);
-        setCallback();
-        suscribe_attributes();
+        connectMQTT();          // se suscribe adentro
+        request_attributes();   // por si cambió algún atributo mientras estaba desconectado
     }
 
     // Se llama periodicamente a loopMQTT para llamar al callback si atributos cambiaron.
@@ -319,6 +338,14 @@ void loop() {
         // Se llama a la funcion de pasamanos para mandarle al inversor los datos del bms (registros 6000s)
     }
 
+        // Inversor cada 1 s: leer estado -> máquina de estados -> escribir
+    if (millis() - lastCicloInv >= 1000) {
+        lastCicloInv = millis();
+        if (leerEstadoInversor()) {      // si no respondió, ese segundo no se escribe nada
+            actualizarEstado();
+            escribirInversor();
+        }
+    }
 
     // Se hace un poll al inversor para obtener datos
     if (millis() - lastPollInv > intervals.poll_modbus_ms){
@@ -349,77 +376,8 @@ void loop() {
     //-------------------------------------------------
     
     T_sensor = dhtRead();
-    publishTelemetrySensor(T_sensor.temperature_c, T_sensor.humidity_pct);
+    if (T_sensor.valid) publishTelemetrySensor(T_sensor.temperature_c, T_sensor.humidity_pct);
     if (thermalControlUpdate(millis(), bms.temp_cell_min_c, bms.temp_cell_max_c, T_sensor.temperature_c, publicarEstadoCooling)){
         inverterWrite(REG_SHUTDOWN, 1);
-    }
-
-
-    //--------------------------
-    // Se lee el registro 32
-    //--------------------------
-
-    // Independientemente del estado en el que se encuentra el sistema, si la red se desconecta pasamos a modo isla.
-    // bit3 = reg_32 & 0x0008 y bit4 = reg_32 & 0x0010
-    // bit3 = 'Grid connection Status' / bit4 = 'Off-grid status'
-    if (inverterRead(REG_STATUS, 1, &reg_32)){
-        grid_ok = ((reg_32 & 0x0008) && !(reg_32 & 0x0010));
-    }
-
-    //-------------------------------------------------------------
-    // Se hace la pregunta a Evemove de si hay vehiculo conectado
-    //-------------------------------------------------------------
-    
-    // ... completar cuando se tenga hecho
-    //vehiculo_conectado = hay_vehiculo();
-
-
-    switch (STATE) {
-        case IDLE:
-            // Tambien se pueden cargar las baterias debido al consumo en reposo
-
-            // Se actualizan los estados
-            if (vehiculo_conectado)
-                STATE = CHARGING_VEHICLE;
-            else
-                STATE = IDLE;
-            break;
-
-        case CHARGING_VEHICLE:
-            if (!grid_ok){
-                if (!pot_menor_20k_send){
-                    pot_menor_20k_send = true;
-                    // Se envia a thingsboard el comando para que el cargador pida 20kW o menos 
-                }
-                if (bms.soc_pct > 10){
-                    // Se carga con normalidad usando las baterias
-                }else{
-                    // Se tiene que suspender la carga de alguna manera, tal vez avisandole al cargador que pare.
-                }
-            }else{ //grid_ok = true
-                pot_menor_20k_send = false;
-                // Se puede pedir la potencia demendada por el auto instante a instante y ver como fijar el setpoint (reg.353)
-            }
-
-            // Se actualizan los estados
-            if (vehiculo_conectado)
-                STATE = CHARGING_VEHICLE;
-            else if (bms.soc_pct < 95 && grid_ok) // No hay vehiculo y la carga usó las baterias
-                    STATE = CHARGING_BATTERY;
-                 else
-                    STATE = IDLE;
-            break;
-
-        case CHARGING_BATTERY:
-            // Aca se cargan las baterias siempre que se tenga red, se puede hacer un CCCV o el perfil que se quiera.
-
-            // Se actualizan los estados.
-            if (vehiculo_conectado)
-                STATE = CHARGING_VEHICLE;
-            else if (bms.soc_pct < 95 && grid_ok)
-                    STATE = CHARGING_BATTERY;
-                 else
-                    STATE = IDLE;
-            break;
     }
 }

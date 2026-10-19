@@ -15,7 +15,7 @@ WiFiClient         wifiClient;
 PubSubClient       mqtt(wifiClient);
 
 namespace{
-    void onMqttMessage1(char* topic, byte* payload, unsigned int length) {
+    void onMqttMessage(char* topic, byte* payload, unsigned int length) {
         String msg;
         for (unsigned int i = 0; i < length; i++) msg += (char)payload[i];
         String t = String(topic);
@@ -43,39 +43,7 @@ namespace{
         if (atributos.isNull()) return;
 
         for (JsonPair kv : atributos) {
-            telemetria_set_attribute_handler1(kv.key().c_str(), kv.value().as<float>());
-        }
-    }
-
-    void onMqttMessage2(char* topic, byte* payload, unsigned int length) {
-        String msg;
-        for (unsigned int i = 0; i < length; i++) msg += (char)payload[i];
-        String t = String(topic);
-
-        Serial.print("[MQTT] Mensaje en topic: '");
-        Serial.print(t);
-        Serial.println("'");
-
-        StaticJsonDocument<4096> doc;
-        DeserializationError err = deserializeJson(doc, msg);
-        if (err) {
-            Serial.print("[MQTT] Error parseando JSON: ");
-            Serial.println(err.c_str());
-            return;
-        }
-
-        JsonObject atributos;
-
-        if (t.startsWith("v1/devices/me/attributes/response/")) {
-            atributos = doc["shared"];
-        } else if (t == TOPIC_ATTRIBUTES_SUB) {
-            atributos = doc.as<JsonObject>();
-        }
-
-        if (atributos.isNull()) return;
-
-        for (JsonPair kv : atributos) {
-            telemetria_set_attribute_handler2(kv.key().c_str(), kv.value().as<float>());
+            shared_attributes_update(kv.key().c_str(), kv.value().as<float>());
         }
     }
 }
@@ -106,23 +74,19 @@ void mqttstate(){
     Serial.println(mqtt.state());
 }
 
-void setCallback(){
-    mqtt.setCallback(onMqttMessage2);
-}
-
-void connectMQTT(callback_type modo) {
+void connectMQTT() {
     mqtt.setServer(TB_HOST, TB_PORT);
     mqtt.setBufferSize(4096);
-    
-    if (modo == Callback_setup) 
-        mqtt.setCallback(onMqttMessage1);
-    else if (modo == Callback_loop)     
-        mqtt.setCallback(onMqttMessage2);
-    
+    mqtt.setSocketTimeout(2);
+    mqtt.setCallback(onMqttMessage);
+
     String clientId = "ESP32_test_tb_" + String((uint32_t)ESP.getEfuseMac(), HEX);
 
     if (mqtt.connect(clientId.c_str(), TB_ACCESS_TOKEN, nullptr)) {
         Serial.println("MQTT conectado");
+        // Las suscripciones se pierden al desconectarse: se hacen siempre al conectar
+        mqtt.subscribe(TOPIC_ATTRIBUTES_SUB);   // cambios de atributos compartidos
+        mqtt.subscribe(TOPIC_ATTR_RESPONSE);    // respuestas a request_attributes()
     } else {
         Serial.print("Fallo conexion MQTT, rc=");
         Serial.println(mqtt.state());
@@ -130,14 +94,19 @@ void connectMQTT(callback_type modo) {
 }
 
 void request_attributes(){
-    mqtt.publish(TOPIC_ATTR_REQUEST, SHARED_KEYS_REQUEST);
-    mqtt.subscribe(TOPIC_ATTR_RESPONSE);
+    mqtt.publish(TOPIC_ATTR_REQUEST, SHARED_KEYS_REQUEST);   // ya está suscripto a la respuesta
 }
 
-void suscribe_attributes(){
-    bool ok = mqtt.subscribe(TOPIC_ATTRIBUTES_SUB);
-    Serial.print("[MQTT] Subscribe a atributos ok?: ");
-    Serial.println(ok);
+
+// Esta funcion publica hacia thingsboard los atributos compartidos
+// Hasta el momento de hacer esta funcion son todos booleanos
+// Si es necesario se puede mejorar para que sean otras variables
+bool publish_attribute(const char* clave, bool valor) {
+    JsonDocument doc;
+    doc[clave] = valor;
+    char payload[96];
+    serializeJson(doc, payload, sizeof(payload));
+    return mqtt.publish("v1/devices/me/attributes", payload);
 }
 
 

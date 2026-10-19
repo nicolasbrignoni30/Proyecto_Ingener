@@ -88,7 +88,6 @@ struct inverterValues{
 };
 
 extern inverterValues inverter_values;
-extern float limit_pot;
 
 bool inverterWrite(uint16_t reg, int16_t value);
 bool inverterRead(uint16_t reg, uint16_t count, int16_t* out);
@@ -96,7 +95,6 @@ void inverterInit(HardwareSerial& serial, uint8_t deRePin);
 void inverter_init_defaults();
 void inverter_reinit_from_cloud();
 void inverter_update_reg_values(const String& key, float value);
-void inverter_update_limit_pot(const String& key, float value);
 void inverter_queue_write(const String& key, float value);
 void inverter_process_pending_writes();
 void verifyAndReinit();
