@@ -50,12 +50,8 @@ unsigned long lastVerifyInv = 0;
 unsigned long LastBmsListen = 0;
 unsigned long lastPollGasAlarm = 0;
 unsigned long lastReconexion = 0;
-
-// Globales, arriba de setup() y loop()
-bool          primera_vez        = true;   // fuerza 329/334/351 en la primera vuelta
-bool          apagado_solicitado = false;  // true cuando el control térmico manda 651
-float         setpoint_red_kw    = 0.0f;   // lo fijará la máquina de estados
-unsigned long reg_10_seg         = 0;
+unsigned long lastCicloInv = 0;
+unsigned long lastPollDht = 0;
 
 Intervals intervals;
 
@@ -74,21 +70,28 @@ float limit_power;
 float I_MAX;
 float I_MIN;
 float V1;
-float V2;
+float V2;         
+bool vehiculo_conectado = false; 
+bool off_grid_ack = false; 
+
+// ---------------------------------------------------------------------------
+// Atributos de Cliente
+// ---------------------------------------------------------------------------
+
+bool grid_ok = false;
+bool inv_ok  = false;
+bool power_off = false;
+
+// ---------------------------------------------------------------------------
+// Booleanos que no son variables compartidas
+// ---------------------------------------------------------------------------
+
+bool apagado_termico = false;   // lo pide thermal_control
+bool grid_ok_ant = false;
 
 // ---------------------------------------------------------------------------
 // Control del inversor
 // ---------------------------------------------------------------------------
-
-enum Estado { IDLE, CHARGING_VEHICLE, CHARGING_BATTERY };
-Estado STATE = IDLE;
-
-bool grid_ok = false;           // reg 32: b3 = 1 (con red) y b4 = 0 (no isla)
-bool inv_ok  = false;           // reg 32: b2 = 1 (encendido) y b0 = 0 (sin falla)
-bool apagado_termico = false;   // lo pide thermal_control
-bool safe_mode = false;
-unsigned long lastCicloInv = 0;
-
 
 // Lee el reg 32 y publica grid_ok si cambió. Devuelve false si el inversor no respondió.
 // Si mas de cinco veces seguidas no se puedo leer el inversor se pasan los booleanos a false
@@ -126,26 +129,21 @@ bool leerEstadoInversor() {
 void escribirInversor() {
     static uint8_t ciclo   = 0;
     static float I_chg = 0;
-    bool apagar = false;
 
-    apagar = apagado_termico || safe_mode;
+    power_off = apagado_termico; //En un futuro esto podria ser un OR con otras condiciones de apagado que salgan de otro lugar que no sea el control termico.
 
-    if (STATE == IDLE){
+    if (bms.soc_pct == 100){ // Si llego al 100% se detiene la carga
         I_chg = 0.0;
-    }else{ // CHARGING_VEHICLE o CHARGING_BATTERY
-        if (bms.soc_pct == 100){ // Si llego al 100% se detiene la carga
-            I_chg = 0.0;
-        }else{
-            if (bms.cell_voltage_max_v <= V1){
-                I_chg = I_MAX;
-            }
-            else if (bms.cell_voltage_max_v <= V2){
-                I_chg = I_MAX * ((V2 - bms.cell_voltage_max_v) / (V2 - V1));
-            }
-                else if (I_chg <= I_MIN || bms.cell_voltage_max_v > V2){
-                    I_chg = I_MIN;
-                }
+    }else{
+        if (bms.cell_voltage_max_v <= V1){
+            I_chg = I_MAX;
         }
+        else if (bms.cell_voltage_max_v <= V2){
+            I_chg = max(I_MIN, I_MAX * ((V2 - bms.cell_voltage_max_v) / (V2 - V1)));
+        }
+            else if (bms.cell_voltage_max_v > V2){
+                I_chg = I_MIN;
+            }
     }
 
     // Cada 10 s (y en el primer ciclo). Sin 329/334 el inversor no acepta los 6000.
@@ -156,15 +154,15 @@ void escribirInversor() {
     }
     if (++ciclo >= 10) ciclo = 0;
 
-    float setpoint_kw = (STATE != IDLE && inv_ok && grid_ok) ? -limit_power : 0.0f;
+    float setpoint_kw = (inv_ok && grid_ok) ? -limit_power : 0.0f;
 
     // Cada 1 s, en el mismo orden que el EMS
-    inverterWrite(apagar ? REG_SHUTDOWN : REG_POWER_ON, 1);
+    if (inverterWrite(apagado_termico ? REG_SHUTDOWN : REG_POWER_ON, 1)) publish_attribute("power_off", power_off);
     inverterWrite(BMS_BATTERY_SOC,           bms.soc_pct / SCALE_SOC_SOH);
     inverterWrite(BMS_MAX_CHG_CURRENT,       (int16_t)(bms.max_charge_a / SCALE_CURRENT_A));
     inverterWrite(BMS_MAX_DISCHG_CURRENT,    (int16_t)(bms.max_discharge_a / SCALE_CURRENT_A));
     inverterWrite(REG_DC_MAX_CHG_CURRENT,    (int16_t)(I_chg / SCALE_CURRENT_A));
-    inverterWrite(REG_DC_MAX_DISCHG_CURRENT, bms.soc_pct < SOC_RESERVA ? 0 : (int16_t)(bms.max_discharge_a / SCALE_CURRENT_A));
+    inverterWrite(REG_DC_MAX_DISCHG_CURRENT, bms.soc_pct < SOC_RESERVA ? 0 : (int16_t)(inverter_values.dc_max_dischg_current / SCALE_CURRENT_A));
     inverterWrite(REG_3PHASE_CTRL_MODE,      inverter_values.three_phase_ctrl_mode_value);
     inverterWrite(REG_PV_SWITCH,             inverter_values.pv_switch_value);
     inverterWrite(REG_ANTI_BACKFLOW,         inverter_values.anti_backflow_value);
@@ -174,14 +172,15 @@ void escribirInversor() {
 }
 
 // Máquina de estados
-void actualizarEstado() {
-    switch (STATE) {
-        case IDLE:
-            break;
-        case CHARGING_VEHICLE:
-            break;
-        case CHARGING_BATTERY:
-            break;
+void actualizarModo() {
+    if (grid_ok){
+        off_grid_ack = false;
+        if (!grid_ok_ant) grid_ok_ant = inverterWrite(REG_GRID_CONNECT_CMD, 1) ? true : false;
+    }else{
+        grid_ok_ant = false;
+        if (off_grid_ack){ // esto es para saber si thingsboard se entero de que no hay red y bajo la potencia
+            inverterWrite(REG_OFFGRID_CMD, 1);
+        }
     }
 }
 
@@ -192,18 +191,14 @@ void actualizarEstado() {
 // thermal_control llama a esto para reportar reducción de potencia / shutdown.
 // Publica a thingsboard dos booleanos para poder hacer la logica
 // de si hay que avisarle a EveMove que hay que bajar la potencia o directamente cortar
-void publicarEstadoCooling(bool bajar_pot, bool shut_down) {
-    publishCoolingAttributes(bajar_pot, shut_down);
+void publicar_estado_termico(const char* key, bool bajar_pot) {
+    publish_attribute(key, bajar_pot);
 };
 
 void parser(can_frame* ptr_msg){
     uint16_t id = (uint16_t)((*ptr_msg).can_id);
     bms_parse_can(id, (*ptr_msg).data, bms);
 }
-
-// ---------------------------------------------------------------------------
-// Aqui terminan los callbacks
-// ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
 // Funciones de Inicializacion
@@ -269,6 +264,8 @@ void shared_attributes_update(const String& key, float value) {
     else if (key == "I_MIN") I_MIN = value;
     else if (key == "V1") V1 = value;
     else if (key == "V2") V2 = value;
+    else if (key == "vehiculo_conectado") vehiculo_conectado = value;
+    else if (key == "off_grid_ack") off_grid_ack = value;
     
     // --- intervalos de tiempo ---
     else if (key == "listen_bms_ms")  intervals.listen_bms_ms  = (uint32_t)value;
@@ -310,9 +307,6 @@ int8_t num_bms_frames = 9;
 int16_t batch_timeout = 1500;
 int16_t reg_32 = 0;
 
-// Se definen flags a usar en el bucle principal
-bool vehiculo_conectado = false;
-
 
 // ---------------------------------------------------------------------------
 // Loop
@@ -330,21 +324,23 @@ void loop() {
     // Se llama periodicamente a loopMQTT para llamar al callback si atributos cambiaron.
     loopMQTT();
 
-    // Se reciben los 9 frames que envia el bms se parsea lo importante y se envia a thingsboard
-    if (millis() - LastBmsListen > intervals.listen_bms_ms){
-        LastBmsListen = millis();
-        bmsReceiveBatch(&canMsgRx, num_bms_frames, batch_timeout, parser);
-        publishTelemetryBMS(bms);
-        // Se llama a la funcion de pasamanos para mandarle al inversor los datos del bms (registros 6000s)
-    }
+    // Se reciben los datos del bms 
+    bmsReceiveBatch(&canMsgRx, num_bms_frames, batch_timeout, parser);
 
-        // Inversor cada 1 s: leer estado -> máquina de estados -> escribir
+    // Inversor cada 1 s: leer estado -> máquina de estados -> escribir
     if (millis() - lastCicloInv >= 1000) {
         lastCicloInv = millis();
         if (leerEstadoInversor()) {      // si no respondió, ese segundo no se escribe nada
-            actualizarEstado();
+            actualizarModo();
             escribirInversor();
         }
+    }
+
+    // Se reciben los 9 frames que envia el bms se parsea lo importante y se envia a thingsboard
+    if (millis() - LastBmsListen > intervals.listen_bms_ms){
+        LastBmsListen = millis();
+        publishTelemetryBMS(bms);
+        // Se llama a la funcion de pasamanos para mandarle al inversor los datos del bms (registros 6000s)
     }
 
     // Se hace un poll al inversor para obtener datos
@@ -374,10 +370,11 @@ void loop() {
     //-------------------------------------------------
     // Se leen los datos del sensor + Control Termico
     //-------------------------------------------------
-    
-    T_sensor = dhtRead();
-    if (T_sensor.valid) publishTelemetrySensor(T_sensor.temperature_c, T_sensor.humidity_pct);
-    if (thermalControlUpdate(millis(), bms.temp_cell_min_c, bms.temp_cell_max_c, T_sensor.temperature_c, publicarEstadoCooling)){
-        inverterWrite(REG_SHUTDOWN, 1);
+
+    if (millis() - lastPollDht > 3000){
+        lastPollDht = millis();
+        T_sensor = dhtRead();
+        if (T_sensor.valid) publishTelemetrySensor(T_sensor.temperature_c, T_sensor.humidity_pct);
+        apagado_termico = thermalControlUpdate(millis(), bms.temp_cell_min_c, bms.temp_cell_max_c, T_sensor.temperature_c, publicar_estado_termico);
     }
 }

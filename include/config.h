@@ -36,8 +36,11 @@
 #define DEFAULT_PV_SWITCH_VALUE 0
 #define DEFAULT_LEAKAGE_DETECT_VALUE 0
 #define DEFAULT_DCDC_SWITCH_VALUE 0
-#define DEFAULT_SET_POWER -2.0f //Ver si es positivo o negativo
+#define DEFAULT_SET_POWER 0.0f //Ver si es positivo o negativo
 #define DEFAULT_POWER_ON_VALUE 0
+#define DEFAULT_DISABLE_AUTO_OFFGRID 1
+#define DEFAULT_SAVE_PARAMS 1
+
 
 #define CANT_REG_INIT 10
     

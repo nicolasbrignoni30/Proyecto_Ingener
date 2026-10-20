@@ -81,7 +81,7 @@ void thermal_update_threshold(const String& key, float value) {
 }
 
 
-bool thermalControlUpdate(unsigned long now_ms, float temp_min, float temp_max, float temp_amb, void (*mandarT)(bool, bool)) {
+bool thermalControlUpdate(unsigned long now_ms, float temp_min, float temp_max, float temp_amb, void (*mandarT)(const char*, bool)) {
     //if (!bms.valid) return;  // sin dato fresco del BMS, no se toca nada
 
     bool shut_down = false;
@@ -131,13 +131,13 @@ bool thermalControlUpdate(unsigned long now_ms, float temp_min, float temp_max, 
         case THERMAL_STATE_COOLING:
             if (temp_amb < thermal_thresholds.cool_off_c){
                 enterMonitor();
-                mandarT(false, false);
+                mandarT("reducir_pot_temp", false);
             } else if (temp_amb >= thermal_thresholds.cool_off_c && temp_amb < thermal_thresholds.cool_pot_c){
-                mandarT(false, false);    
+                mandarT("reducir_pot_temp", false);    
             }else if (temp_amb >= thermal_thresholds.cool_pot_c && temp_amb < thermal_thresholds.cool_critical_c){
-                mandarT(true, false);
+                mandarT("reducir_pot_temp", true);
             }else if (temp_amb >= thermal_thresholds.cool_critical_c){
-                mandarT(false, true);
+                mandarT("reducir_pot_temp", false);
                 shut_down = true;
             }
             break;

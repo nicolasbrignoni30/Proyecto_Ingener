@@ -265,18 +265,6 @@ void publishTelemetrySensor(float temperature, float humidity){
 }
 
 
-//####################################################################
-// Esto es para avisarle a thingboard que baje la potencia
-//####################################################################
-
-void publishCoolingAttributes(bool bajar_pot, bool shut_down) {
-    JsonDocument doc;
-    doc["reducir_pot_temp"] = bajar_pot;
-    doc["safe_mode"] = shut_down;
-    char payload[64];
-    size_t len = serializeJson(doc, payload, sizeof(payload));
-    mqtt.publish("v1/devices/me/attributes", payload);
-}
 
 //#######################################################################
 // Las funciones de aca abajo son para datos simulados, se usan en test_tb

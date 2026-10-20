@@ -156,6 +156,8 @@ void inverter_update_reg_values(const String& key, float value) {
     else if (key == "dcdc_switch_value")            inverter_values.dcdc_switch_value = value;
     else if (key == "set_power")                    inverter_values.set_power = value;
     else if (key == "power_on_value")               inverter_values.power_on_value = value;
+    else if (key == "disable_auto_offgrid")         inverter_values.disable_auto_offgrid = value;
+    else if (key == "save_params")                  inverter_values.save_params = value;
     else return; // key que no le corresponde a este módulo, se ignora
 }
 

@@ -85,6 +85,8 @@ struct inverterValues{
     int16_t dcdc_switch_value;
     float   set_power;
     int16_t power_on_value;
+    int16_t disable_auto_offgrid;
+    int16_t save_params;
 };
 
 extern inverterValues inverter_values;
