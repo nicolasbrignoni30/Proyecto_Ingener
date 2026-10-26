@@ -25,6 +25,7 @@
 // Lectura
 #define REG_STATUS                  32
 #define REG_STATUS_COUNT             1
+#define REG_CONDITION               52
 #define REG_AC_START               100
 #define REG_AC_COUNT                26
 #define REG_DC_START               141

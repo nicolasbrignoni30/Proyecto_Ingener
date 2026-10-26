@@ -195,15 +195,15 @@ void publishTelemetryBMS(const BmsData& datosBms){
     //Estos corresponden al 0x421x  
     doc["bms_voltage_v"] = datosBms.voltage_v;
     doc["bms_current_a"] = datosBms.current_a;
-    //doc["bms_temp_avg_c"] = datosBms.temp_avg_c;    
+    doc["bms_temp_avg_c"] = datosBms.temp_avg_c;    
     doc["bms_soc_pct"] = datosBms.soc_pct;
     doc["bms_soh_pct"] = datosBms.soh_pct;
 
     //Estos corresponden al 0x422x
-    //doc["charge_cutoff_v"] = datosBms.charge_cutoff_v;
-    //doc["discharge_cutoff_v"] = datosBms.discharge_cutoff_v;
-    //doc["max_charge_a"] = datosBms.max_charge_a;
-    //doc["max_discharge_a"] = datosBms.max_discharge_a;
+    doc["charge_cutoff_v"] = datosBms.charge_cutoff_v;
+    doc["discharge_cutoff_v"] = datosBms.discharge_cutoff_v;
+    doc["max_charge_a"] = datosBms.max_charge_a;
+    doc["max_discharge_a"] = datosBms.max_discharge_a;
 
     //Estos corresponden al 0x423x
     doc["cell_voltage_max_v"] = datosBms.cell_voltage_max_v;
@@ -212,13 +212,13 @@ void publishTelemetryBMS(const BmsData& datosBms){
     //Estos corresponden al 0x424x
     doc["temp_cell_max_c"] = datosBms.temp_cell_max_c;
     doc["temp_cell_min_c"] = datosBms.temp_cell_min_c;
-    //doc["battery_cell_temp_num_max"] = datosBms.battery_cell_temp_num_max;
-    //doc["battery_cell_temp_num_min"] = datosBms.battery_cell_temp_num_min;
+    doc["battery_cell_temp_num_max"] = datosBms.battery_cell_temp_num_max;
+    doc["battery_cell_temp_num_min"] = datosBms.battery_cell_temp_num_min;
 
     //Estos corresponden al 0x425x
-    //doc["fault"] = datosBms.fault;
-    //doc["alarm"] = datosBms.alarm;
-    //doc["protection"] = datosBms.protection;
+    doc["fault"] = datosBms.fault;
+    doc["alarm"] = datosBms.alarm;
+    doc["protection"] = datosBms.protection;
     doc["sleep"] = datosBms.sleep;
     doc["charging"] = datosBms.charging;
     doc["discharging"] = datosBms.discharging;

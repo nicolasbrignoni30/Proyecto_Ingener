@@ -25,7 +25,7 @@
 #define MODBUS_DEVICE_ID 1
 
 // Intervalos de polling (ms)
-#define DEFAULT_POLL_MODBUS_MS   5000
+#define DEFAULT_POLL_MODBUS_MS   20000
 #define DEFAULT_VERIFY_INIT_MS   60000
 
 #define DEFAULT_DC_MAX_DISCHG_CURRENT 90.0f
@@ -58,10 +58,10 @@
 #define GAS_DE_RE_PIN    25
 #define GAS_DEVICE_ID    1
 
-#define DEFAULT_GAS_ALARM_MS 5000
+#define DEFAULT_GAS_ALARM_MS 20000
 
 // Pines del Módulo CAN MCP2515
-#define DEFAULT_LISTEN_BMS_MS  5000
+#define DEFAULT_LISTEN_BMS_MS  20000
 #define CAN_CS    15   // Pin Chip Select exclusivo para el MCP2515
 #define CAN_INT   22   // Pin de Interrupción para que el MCP2515 te avise de datos nuevos
 // Los demas pines como MOSI (23), MISO (19), y SCK (18) estan definidos por defecto.

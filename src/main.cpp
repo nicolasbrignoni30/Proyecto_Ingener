@@ -40,7 +40,6 @@ ModoFuncionamiento modoCan = MODO_NORMAL;
 
 can_frame canMsgRx;
 BmsData   bms;
-DhtData   dht;
 InvData   datosInv;
 DhtData   T_sensor;
 GasData   G_alarm;
@@ -79,7 +78,6 @@ bool off_grid_ack = false;
 // ---------------------------------------------------------------------------
 
 bool grid_ok = false;
-bool inv_ok  = false;
 bool power_off = false;
 
 // ---------------------------------------------------------------------------
@@ -98,27 +96,23 @@ bool grid_ok_ant = false;
 bool leerEstadoInversor() {
     static uint8_t fallas = 0;
     static int8_t  grid_publicado = -1;
-    static int8_t  inv_publicado  = -1;
-    int16_t reg_32;
+    int16_t reg_52;
 
-    bool respondio = inverterRead(REG_STATUS, REG_STATUS_COUNT, &reg_32);
+    bool respondio = inverterRead(REG_CONDITION, 1, &reg_52);
 
     if (respondio) {
         fallas  = 0;
-        grid_ok = (reg_32 & 0x0008) && !(reg_32 & 0x0010);   // b3 = con red, b4 = isla
-        inv_ok  = (reg_32 & 0x0004) && !(reg_32 & 0x0001);   // b2 = encendido, b0 = falla
+        grid_ok = (reg_52 & 0x2000); // El bit 13 del registro 52 es el que dice si hay o no red.
     } else {
         if (fallas < 5) fallas++;
         if (fallas == 5) {               // 5 seguidas sin respuesta: se asume que no hay red
             grid_ok = false;
-            inv_ok  = false;
         }
     }
 
     // Se publica si respondió o si ya van 5 fallas. Una falla suelta no se publica.
     if (respondio || fallas == 5) {
         if (grid_ok != grid_publicado && publish_attribute("grid_ok", grid_ok)) grid_publicado = grid_ok;
-        if (inv_ok  != inv_publicado  && publish_attribute("inv_ok",  inv_ok))  inv_publicado  = inv_ok;
     }
 
     return respondio;   // true solo si el inversor contestó: el loop escribe solo en ese caso
@@ -129,6 +123,7 @@ bool leerEstadoInversor() {
 void escribirInversor() {
     static uint8_t ciclo   = 0;
     static float I_chg = 0;
+    static int8_t power_off_publicado = -1;
 
     power_off = apagado_termico; //En un futuro esto podria ser un OR con otras condiciones de apagado que salgan de otro lugar que no sea el control termico.
 
@@ -154,21 +149,24 @@ void escribirInversor() {
     }
     if (++ciclo >= 10) ciclo = 0;
 
-    float setpoint_kw = (inv_ok && grid_ok) ? -limit_power : 0.0f;
+    float setpoint_kw = grid_ok ? -limit_power : 0.0f;
 
     // Cada 1 s, en el mismo orden que el EMS
-    if (inverterWrite(apagado_termico ? REG_SHUTDOWN : REG_POWER_ON, 1)) publish_attribute("power_off", power_off);
+    inverterWrite(power_off ? REG_SHUTDOWN : REG_POWER_ON, 1);
+    inverterWrite(apagado_termico ? REG_SHUTDOWN : REG_POWER_ON, 1);
     inverterWrite(BMS_BATTERY_SOC,           bms.soc_pct / SCALE_SOC_SOH);
     inverterWrite(BMS_MAX_CHG_CURRENT,       (int16_t)(bms.max_charge_a / SCALE_CURRENT_A));
     inverterWrite(BMS_MAX_DISCHG_CURRENT,    (int16_t)(bms.max_discharge_a / SCALE_CURRENT_A));
     inverterWrite(REG_DC_MAX_CHG_CURRENT,    (int16_t)(I_chg / SCALE_CURRENT_A));
-    inverterWrite(REG_DC_MAX_DISCHG_CURRENT, bms.soc_pct < SOC_RESERVA ? 0 : (int16_t)(inverter_values.dc_max_dischg_current / SCALE_CURRENT_A));
+    inverterWrite(REG_DC_MAX_DISCHG_CURRENT, bms.soc_pct < SOC_RESERVA ? 0 : (int16_t)(30.0 / SCALE_CURRENT_A));
     inverterWrite(REG_3PHASE_CTRL_MODE,      inverter_values.three_phase_ctrl_mode_value);
     inverterWrite(REG_PV_SWITCH,             inverter_values.pv_switch_value);
     inverterWrite(REG_ANTI_BACKFLOW,         inverter_values.anti_backflow_value);
     inverterWrite(REG_LEAKAGE_DETECT,        inverter_values.leakage_detect_value);
     inverterWrite(REG_DCDC_SWITCH,           inverter_values.dcdc_switch_value);
     inverterWrite(REG_SET_POWER,             (int16_t)(setpoint_kw /  SCALE_SET_POWER_KW));
+    
+    if (power_off != power_off_publicado && publish_attribute("power_off", power_off)) power_off_publicado = power_off;
 }
 
 // Máquina de estados
@@ -225,6 +223,7 @@ void init(){
     inverterInit(INVERTER_SERIAL, INVERTER_DE_RE_PIN);
     bmsCanInit(modoCan);
     dhtInit(DHT_PIN);
+    thermalControlInit();
     gasAlarmInit(GAS_SERIAL, GAS_DE_RE_PIN);
     connectWiFi();
     connectMQTT();
@@ -289,12 +288,13 @@ void setup() {
     // Se incializan todos los valores default puesto en la memoria flash.
     init_all_defaults();
 
-    // Se piden los atributos 
+    // Se piden los atributos y se procesan los paquetes que llegan durante 8 s
     request_attributes();
-    delay(8000); // Este pequeño delay es para que lleguen bien las cosas
-
-    // Se llama a loopMQTT()
-    loopMQTT();
+    unsigned long t0 = millis();
+    while (millis() - t0 < 8000) {
+        loopMQTT();   // cada llamada procesa un paquete: primero los SUBACK, después la respuesta
+        delay(10);
+    }
 
     // A diferencia de con thermal_control, para el inversor hay que volver a escribir los registros
     inverter_reinit_from_cloud();
@@ -305,7 +305,6 @@ void setup() {
 
 int8_t num_bms_frames = 9;
 int16_t batch_timeout = 1500;
-int16_t reg_32 = 0;
 
 
 // ---------------------------------------------------------------------------
@@ -353,18 +352,7 @@ void loop() {
     // Se lee la alarma de gas
     if (millis() - lastPollGasAlarm > intervals.poll_gas_alarm_ms){
         lastPollGasAlarm  = millis();
-        gasAlarmReadAll(G_alarm);
-
-        // Se imprimen los valores del sensor de alarma, si todo marcha, se pueden mandar por telemetria
-        Serial.println("----------- Valores gas alarm --------------");
-        Serial.println(G_alarm.alarm1_point);
-        Serial.println(G_alarm.alarm2_point);
-        Serial.println(G_alarm.range);
-        Serial.println(G_alarm.resolution);
-        Serial.println(G_alarm.unit);
-        Serial.println(G_alarm.gas_type);
-        Serial.println(G_alarm.concentration);
-        Serial.println(G_alarm.alarm_status);
+        //gasAlarmReadAll(G_alarm);
     }
 
     //-------------------------------------------------
