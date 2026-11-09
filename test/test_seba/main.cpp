@@ -58,7 +58,7 @@ void init_intervals() {
     intervals.listen_bms_ms  = DEFAULT_LISTEN_BMS_MS;
 }
 
-void init(){
+void init_modules(){
     SPI.begin();
     // Se inicializan las uart independientes para el inversor y la alarma.
     INVERTER_SERIAL.begin(INVERTER_BAUD, SERIAL_8N1, INVERTER_RX_PIN, INVERTER_TX_PIN);
@@ -93,7 +93,7 @@ void setup() {
     while (!Serial);
 
     // Se inicializan todos lo modulo.
-    init();
+    init_modules();
 
     // Se incializan todos los valores default puesto en la memoria flash.
     init_all_defaults();
@@ -139,6 +139,7 @@ void loop() {
 
     T_sensor = dhtRead();
     apagado_termico = coolingControlUpdate(T_sensor.temperature_c, publicar_estado_termico);
+    Serial.println(T_sensor.temperature_c);
 
     if (millis() - lastPollDht > 3000){
         lastPollDht = millis();
