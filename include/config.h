@@ -25,7 +25,7 @@
 #define MODBUS_DEVICE_ID 1
 
 // Intervalos de polling (ms)
-#define DEFAULT_POLL_MODBUS_MS   5000
+#define DEFAULT_POLL_MODBUS_MS   20000
 #define DEFAULT_VERIFY_INIT_MS   60000
 
 #define DEFAULT_DC_MAX_DISCHG_CURRENT 90.0f
@@ -36,8 +36,11 @@
 #define DEFAULT_PV_SWITCH_VALUE 0
 #define DEFAULT_LEAKAGE_DETECT_VALUE 0
 #define DEFAULT_DCDC_SWITCH_VALUE 0
-#define DEFAULT_SET_POWER -2.0f //Ver si es positivo o negativo
+#define DEFAULT_SET_POWER 0.0f //Ver si es positivo o negativo
 #define DEFAULT_POWER_ON_VALUE 0
+#define DEFAULT_DISABLE_AUTO_OFFGRID 1
+#define DEFAULT_SAVE_PARAMS 1
+
 
 #define CANT_REG_INIT 10
     
@@ -55,10 +58,10 @@
 #define GAS_DE_RE_PIN    25
 #define GAS_DEVICE_ID    1
 
-#define DEFAULT_GAS_ALARM_MS 5000
+#define DEFAULT_GAS_ALARM_MS 20000
 
 // Pines del Módulo CAN MCP2515
-#define DEFAULT_LISTEN_BMS_MS  5000
+#define DEFAULT_LISTEN_BMS_MS  20000
 #define CAN_CS    15   // Pin Chip Select exclusivo para el MCP2515
 #define CAN_INT   22   // Pin de Interrupción para que el MCP2515 te avise de datos nuevos
 // Los demas pines como MOSI (23), MISO (19), y SCK (18) estan definidos por defecto.
@@ -85,12 +88,12 @@
 // Control térmico de baterías — ventiladores y heating plates
 // ---------------------------------------------------------------------------
 // Relé de ventiladores — un GPIO controla los 4 ventiladores juntos (circuito ya validado)
-#define FAN_RELAY_PIN         12
+#define FAN_RELAY_PIN         14
  
 // Relé(s) de heating plates — un GPIO controla ambas plaquetas juntas
 // TODO: confirmar si es realmente un solo pin para las dos, o hace falta un
 // segundo GPIO porque a veces se controlan por separado.
-#define HEATING_RELAY_PIN     14
+#define HEATING_RELAY_PIN     12
  
 
 // Aca van los valores default para los umbrales de temperatura
@@ -102,7 +105,7 @@
 #define DEFAULT_TEMP_COOL_ON_C        40.0f
 #define DEFAULT_TEMP_COOL_OFF_C       30.0f
 #define DEFAULT_TEMP_COOL_POT         55.0f
-#define DEFAULT_TEMP_COOL_CRITICAL_C       60.0f
+#define DEFAULT_TEMP_COOL_CRITICAL_C  60.0f
 
 
 // Si hace falta se pueden considerar timeouts pero hay que estudiarlos con cuidado
@@ -116,5 +119,16 @@
 // #define HEATING_ON_MS        (HEATING_ON_MIN     * 60UL * 1000UL)
 // #define HEATING_OFF_MS       (HEATING_OFF_MIN    * 60UL * 1000UL)
 // #define HEATING_TIMEOUT_MS   (HEATING_TIMEOUT_MIN * 60UL * 1000UL)
+
+#define DEFAULT_LIMIT_POWER 0.0f
+#define DEFAULT_I_MAX 10.0f
+#define DEFAULT_I_MIN 1.0f
+#define DEFAULT_V1 3.2f
+#define DEFAULT_V2 3.4f
+
+#define SOC_INICIO_CARGA    90.0f   // por debajo, se carga la batería desde la red
+#define SOC_FIN_CARGA       95.0f   // al llegar, se deja de cargar
+#define SOC_RESERVA         20.0f   // por debajo, no se descarga más la batería
+#define SOC_FIN_RESERVA     25.0f   // la reserva se libera recién acá
  
  

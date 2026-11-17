@@ -15,7 +15,7 @@ WiFiClient         wifiClient;
 PubSubClient       mqtt(wifiClient);
 
 namespace{
-    void onMqttMessage1(char* topic, byte* payload, unsigned int length) {
+    void onMqttMessage(char* topic, byte* payload, unsigned int length) {
         String msg;
         for (unsigned int i = 0; i < length; i++) msg += (char)payload[i];
         String t = String(topic);
@@ -43,39 +43,7 @@ namespace{
         if (atributos.isNull()) return;
 
         for (JsonPair kv : atributos) {
-            telemetria_set_attribute_handler1(kv.key().c_str(), kv.value().as<float>());
-        }
-    }
-
-    void onMqttMessage2(char* topic, byte* payload, unsigned int length) {
-        String msg;
-        for (unsigned int i = 0; i < length; i++) msg += (char)payload[i];
-        String t = String(topic);
-
-        Serial.print("[MQTT] Mensaje en topic: '");
-        Serial.print(t);
-        Serial.println("'");
-
-        StaticJsonDocument<4096> doc;
-        DeserializationError err = deserializeJson(doc, msg);
-        if (err) {
-            Serial.print("[MQTT] Error parseando JSON: ");
-            Serial.println(err.c_str());
-            return;
-        }
-
-        JsonObject atributos;
-
-        if (t.startsWith("v1/devices/me/attributes/response/")) {
-            atributos = doc["shared"];
-        } else if (t == TOPIC_ATTRIBUTES_SUB) {
-            atributos = doc.as<JsonObject>();
-        }
-
-        if (atributos.isNull()) return;
-
-        for (JsonPair kv : atributos) {
-            telemetria_set_attribute_handler2(kv.key().c_str(), kv.value().as<float>());
+            shared_attributes_update(kv.key().c_str(), kv.value().as<float>());
         }
     }
 }
@@ -106,23 +74,19 @@ void mqttstate(){
     Serial.println(mqtt.state());
 }
 
-void setCallback(){
-    mqtt.setCallback(onMqttMessage2);
-}
-
-void connectMQTT(callback_type modo) {
+void connectMQTT() {
     mqtt.setServer(TB_HOST, TB_PORT);
     mqtt.setBufferSize(4096);
-    
-    if (modo == Callback_setup) 
-        mqtt.setCallback(onMqttMessage1);
-    else if (modo == Callback_loop)     
-        mqtt.setCallback(onMqttMessage2);
-    
+    mqtt.setSocketTimeout(2);
+    mqtt.setCallback(onMqttMessage);
+
     String clientId = "ESP32_test_tb_" + String((uint32_t)ESP.getEfuseMac(), HEX);
 
     if (mqtt.connect(clientId.c_str(), TB_ACCESS_TOKEN, nullptr)) {
         Serial.println("MQTT conectado");
+        // Las suscripciones se pierden al desconectarse: se hacen siempre al conectar
+        mqtt.subscribe(TOPIC_ATTRIBUTES_SUB);   // cambios de atributos compartidos
+        mqtt.subscribe(TOPIC_ATTR_RESPONSE);    // respuestas a request_attributes()
     } else {
         Serial.print("Fallo conexion MQTT, rc=");
         Serial.println(mqtt.state());
@@ -130,14 +94,19 @@ void connectMQTT(callback_type modo) {
 }
 
 void request_attributes(){
-    mqtt.publish(TOPIC_ATTR_REQUEST, SHARED_KEYS_REQUEST);
-    mqtt.subscribe(TOPIC_ATTR_RESPONSE);
+    mqtt.publish(TOPIC_ATTR_REQUEST, SHARED_KEYS_REQUEST);   // ya está suscripto a la respuesta
 }
 
-void suscribe_attributes(){
-    bool ok = mqtt.subscribe(TOPIC_ATTRIBUTES_SUB);
-    Serial.print("[MQTT] Subscribe a atributos ok?: ");
-    Serial.println(ok);
+
+// Esta funcion publica hacia thingsboard los atributos compartidos
+// Hasta el momento de hacer esta funcion son todos booleanos
+// Si es necesario se puede mejorar para que sean otras variables
+bool publish_attribute(const char* clave, bool valor) {
+    JsonDocument doc;
+    doc[clave] = valor;
+    char payload[96];
+    serializeJson(doc, payload, sizeof(payload));
+    return mqtt.publish("v1/devices/me/attributes", payload);
 }
 
 
@@ -182,23 +151,23 @@ void publishTelemetryInv(const InvData& inv, const std::string& campo) {
         doc["grid_p_kw"] = inv.grid.p_kw;
         
     } else if (campo == "BMSData") {
-        //doc["voltaje_6000"] = inv.bms.battery_voltage;
-        //doc["current_6001"] = inv.bms.battery_current;
-        //doc["bms_temperature_6002"] = inv.bms.bms_temperature;
-        //doc["battery_soc_6003"] = inv.bms.battery_soc;
-        //doc["battery_soh_6004"] = inv.bms.battery_soh;
-        //doc["capacity_6020"] = inv.bms.capacity;
-        //doc["power_6022"] = inv.bms.power;
+        doc["voltaje_6000"] = inv.bms.battery_voltage;
+        doc["current_6001"] = inv.bms.battery_current;
+        doc["bms_temperature_6002"] = inv.bms.bms_temperature;
+        doc["battery_soc_6003"] = inv.bms.battery_soc;
+        doc["battery_soh_6004"] = inv.bms.battery_soh;
+        doc["capacity_6020"] = inv.bms.capacity;
+        doc["power_6022"] = inv.bms.power;
     } else if (campo == "LoadData") {
 #ifdef INVERTER_PROTOCOL_V3
         doc["load_p_kw"] = inv.load.p_total;
         doc["load_s_kva"]= inv.load.s_total;
 #endif
     } else if (campo == "FirmData") {
-        //doc["fw_hw_version"]   = inv.firm.fw_hw_version;
-        //doc["fw_dsp_version"]  = inv.firm.fw_dsp_version;
-        //doc["fw_com_version"]  = inv.firm.fw_com_version;
-        //doc["fw_rtu_protocol"] = inv.firm.fw_rtu_protocol;
+        doc["fw_hw_version"]   = inv.firm.fw_hw_version;
+        doc["fw_dsp_version"]  = inv.firm.fw_dsp_version;
+        doc["fw_com_version"]  = inv.firm.fw_com_version;
+        doc["fw_rtu_protocol"] = inv.firm.fw_rtu_protocol;
     } else {
         Serial.println("[MQTT] Error: Campo de telemetría no reconocido.");
         campoValido = false;
@@ -226,15 +195,15 @@ void publishTelemetryBMS(const BmsData& datosBms){
     //Estos corresponden al 0x421x  
     doc["bms_voltage_v"] = datosBms.voltage_v;
     doc["bms_current_a"] = datosBms.current_a;
-    //doc["bms_temp_avg_c"] = datosBms.temp_avg_c;    
+    doc["bms_temp_avg_c"] = datosBms.temp_avg_c;    
     doc["bms_soc_pct"] = datosBms.soc_pct;
     doc["bms_soh_pct"] = datosBms.soh_pct;
 
     //Estos corresponden al 0x422x
-    //doc["charge_cutoff_v"] = datosBms.charge_cutoff_v;
-    //doc["discharge_cutoff_v"] = datosBms.discharge_cutoff_v;
-    //doc["max_charge_a"] = datosBms.max_charge_a;
-    //doc["max_discharge_a"] = datosBms.max_discharge_a;
+    doc["charge_cutoff_v"] = datosBms.charge_cutoff_v;
+    doc["discharge_cutoff_v"] = datosBms.discharge_cutoff_v;
+    doc["max_charge_a"] = datosBms.max_charge_a;
+    doc["max_discharge_a"] = datosBms.max_discharge_a;
 
     //Estos corresponden al 0x423x
     doc["cell_voltage_max_v"] = datosBms.cell_voltage_max_v;
@@ -243,15 +212,17 @@ void publishTelemetryBMS(const BmsData& datosBms){
     //Estos corresponden al 0x424x
     doc["temp_cell_max_c"] = datosBms.temp_cell_max_c;
     doc["temp_cell_min_c"] = datosBms.temp_cell_min_c;
-    //doc["battery_cell_temp_num_max"] = datosBms.battery_cell_temp_num_max;
-    //doc["battery_cell_temp_num_min"] = datosBms.battery_cell_temp_num_min;
+    doc["battery_cell_temp_num_max"] = datosBms.battery_cell_temp_num_max;
+    doc["battery_cell_temp_num_min"] = datosBms.battery_cell_temp_num_min;
 
     //Estos corresponden al 0x425x
     doc["fault"] = datosBms.fault;
     doc["alarm"] = datosBms.alarm;
     doc["protection"] = datosBms.protection;
+    doc["sleep"] = datosBms.sleep;
     doc["charging"] = datosBms.charging;
     doc["discharging"] = datosBms.discharging;
+    doc["balace_charge_request"] = datosBms.balance_charge_request;
     //doc["force_charge_req"] = datosBms.force_charge_req;
 
     //Estos correcponden al 00x428x
@@ -263,7 +234,6 @@ void publishTelemetryBMS(const BmsData& datosBms){
 
     //doc["charging_forbidden"] = datosBms.charge_forbidden;
     //doc["discharging_forbidden"] = datosBms.discharge_forbidden;
-    //doc["temp_fet_c"] = datosBms.temp_fet_c;
 
     char payload[2048];
     serializeJson(doc, payload, sizeof(payload));
@@ -295,18 +265,6 @@ void publishTelemetrySensor(float temperature, float humidity){
 }
 
 
-//####################################################################
-// Esto es para avisarle a thingboard que baje la potencia
-//####################################################################
-
-void publishCoolingAttributes(bool bajar_pot, bool shut_down) {
-    JsonDocument doc;
-    doc["reducir_pot_temp"] = bajar_pot;
-    doc["safe_mode"] = shut_down;
-    char payload[64];
-    size_t len = serializeJson(doc, payload, sizeof(payload));
-    mqtt.publish("v1/devices/me/attributes", payload);
-}
 
 //#######################################################################
 // Las funciones de aca abajo son para datos simulados, se usan en test_tb

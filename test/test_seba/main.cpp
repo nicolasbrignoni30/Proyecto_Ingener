@@ -5,6 +5,8 @@
 #include "bms_can.h"
 #include "bms_parser.h"
 #include "telemetria.h"
+#include "cooling_control.h"
+#include "dht_sensor.h"
 #include "config.h"
 
 // ---------------------------------------------------------------------------
@@ -18,10 +20,13 @@ struct Intervals {
 // Funcionamiento del MCP2515
 ModoFuncionamiento modoCan = MODO_NORMAL;
 
-can_frame canMsgRx;
+can_frame rx;
 BmsData   bms;
+DhtData   T_sensor;
 
 unsigned long LastBmsListen = 0;
+unsigned long lastPollDht = 0;
+bool apagado_termico = false;
 
 Intervals intervals;
 
@@ -36,6 +41,10 @@ __u8 datos[8] = {0,0,0,0,0,0,0,0};
 // Callbacks
 // ---------------------------------------------------------------------------
 
+void publicar_estado_termico(const char* key, bool bajar_pot) {
+    publish_attribute(key, bajar_pot);
+};
+
 void parser(can_frame* ptr_msg){
     uint16_t id = (uint16_t)((*ptr_msg).can_id);
     bms_parse_can(id, (*ptr_msg).data, bms);
@@ -49,39 +58,31 @@ void init_intervals() {
     intervals.listen_bms_ms  = DEFAULT_LISTEN_BMS_MS;
 }
 
-void init(){
+void init_modules(){
     SPI.begin();
     // Se inicializan las uart independientes para el inversor y la alarma.
     INVERTER_SERIAL.begin(INVERTER_BAUD, SERIAL_8N1, INVERTER_RX_PIN, INVERTER_TX_PIN);
     
     bmsCanInit(modoCan);
+    coolingControlInit();
+    dhtInit(DHT_PIN);
     connectWiFi();
-    connectMQTT(Callback_setup);
+    connectMQTT();
 }
 
 void init_all_defaults(){
     init_intervals();
+    cooling_thresholds_init_defaults();
 };
 
 // ---------------------------------------------------------------------------
 // finalizan las Funciones de Inicializacion
 // ---------------------------------------------------------------------------
 
-
-
-void intervals_update(const String& key, float value) {
+void shared_attributes_update(const String& key, float value) {
+    cooling_update_threshold(key, value);
     if      (key == "listen_bms_ms")  intervals.listen_bms_ms  = (uint32_t)value;
     else return;
-}
-
-// Las funciones a continuacion se definen aca pero son las que se pasan en los callbacks definidos en el modulo de telemetria.
-
-void telemetria_set_attribute_handler1(const String& key, float value) {
-    intervals_update(key, value);
-}
-
-void telemetria_set_attribute_handler2(const String& key, float value) {
-    intervals_update(key, value);
 }
 
 // ---------------------------------------------------------------------------
@@ -92,22 +93,19 @@ void setup() {
     while (!Serial);
 
     // Se inicializan todos lo modulo.
-    init();
+    init_modules();
 
     // Se incializan todos los valores default puesto en la memoria flash.
     init_all_defaults();
 
     // Se piden los atributos 
     request_attributes();
-    delay(8000); // Este pequeño delay es para que lleguen bien las cosas
-
-    // Se llama a loopMQTT()
-    loopMQTT();
+    unsigned long t0 = millis();
+    while (millis() - t0 < 8000) {
+        loopMQTT();   // cada llamada procesa un paquete: primero los SUBACK, después la respuesta
+        delay(10);
+    }
     
-    // Se modifica el Callback para adecuarlo a cuando cambian algunos atributos.
-    setCallback();
-    suscribe_attributes();
-
     // Se envia el frame que hace que el bms comience a mandar periodicamente sus paquetes
     bmsSend(id, datos, dlc, &tx);
 }
@@ -125,19 +123,26 @@ void loop() {
     if (!checkMQTTConnection()) {
         Serial.print("MQTT desconectado, state: ");
         mqttstate();
-        connectMQTT(Callback_loop);
-        setCallback();
-        suscribe_attributes();
+        connectMQTT();
     }
 
     // Se llama periodicamente a loopMQTT para llamar al callback si atributos cambiaron.
     loopMQTT();
 
+    bmsReceiveBatch(&rx, num_bms_frames, batch_timeout, parser);
 
     // Se reciben los 9 frames que envia el bms se parsea lo importante y se envia a thingsboard
     if (millis() - LastBmsListen > intervals.listen_bms_ms){
         LastBmsListen = millis();
-        bmsReceiveBatch(&canMsgRx, num_bms_frames, batch_timeout, parser);
         publishTelemetryBMS(bms);
+    }
+
+    T_sensor = dhtRead();
+    apagado_termico = coolingControlUpdate(T_sensor.temperature_c, publicar_estado_termico);
+    Serial.println(T_sensor.temperature_c);
+
+    if (millis() - lastPollDht > 3000){
+        lastPollDht = millis();
+        if (T_sensor.valid) publishTelemetrySensor(T_sensor.temperature_c, T_sensor.humidity_pct);
     }
 }

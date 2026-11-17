@@ -25,6 +25,7 @@
 // Lectura
 #define REG_STATUS                  32
 #define REG_STATUS_COUNT             1
+#define REG_CONDITION               52
 #define REG_AC_START               100
 #define REG_AC_COUNT                26
 #define REG_DC_START               141
@@ -46,6 +47,28 @@
 #define BMS_MAX_CHG_POWER 6007
 #define BMS_MAX_DISCHG_POWER 6008
 
+// ---------------------------------------------------------------------------
+// Agregados (protocolo PCS V2.0)
+// ---------------------------------------------------------------------------
+
+// Escritura cada ~10 s, como el EMS. Escribirlos al arrancar, ANTES que los 6000s
+#define REG_BMS_MASTER_SLAVE       329   // 0 maestro · 1 esclavo: el inversor toma los datos de 6000–6022
+#define REG_BMS_POWER_SCHED        334   // 1 = potencia limitada según el BMS
+#define REG_OFFGRID_PWR_REG        351   // el EMS escribe 2 (valor no documentado)
+
+// Lectura de configuración pendiente (no cruzar segmentos: 300–330 y 331–354)
+#define REG_BMS_TIMEOUT            324   // s, 0 = deshabilitado (por defecto 10)
+#define REG_BMS_PROTOCOL           330   // protocolo del BMS
+#define REG_EMS_TIMEOUT            331   // 0,1 s, 0 = deshabilitado
+#define REG_EMS_TIMEOUT_ACTION     339   // 0 standby · 1 apagado al vencer el timeout
+
+// Modo isla / EPS (respuesta del fabricante). No usar hasta confirmar con ellos
+#define REG_GRID_CONNECT_CMD       653   // 1 = pasar a red (solo con 655 = 1)
+#define REG_OFFGRID_CMD            654   // 1 = pasar a isla (solo con 655 = 1)
+#define REG_DISABLE_AUTO_OFFGRID   655   // 1 = sin pase automático a isla; 0 no hace nada
+#define REG_SAVE_PARAMS            659   // 1 = guardar parámetros
+#define REG_ANTI_ISLANDING         790   // 0 off · 1 on (hoy está en 0)
+
 struct InitCmd {
     uint16_t    reg;
     int16_t     val;
@@ -63,18 +86,9 @@ struct inverterValues{
     int16_t dcdc_switch_value;
     float   set_power;
     int16_t power_on_value;
+    int16_t disable_auto_offgrid;
+    int16_t save_params;
 };
-
-#define MAX_PENDING_WRITES 10
-
-struct PendingWrite {
-    bool        activo;
-    uint16_t    reg;
-    int16_t     value;
-    const char* nombre;
-};
-
-extern PendingWrite pendingWrites[MAX_PENDING_WRITES];
 
 extern inverterValues inverter_values;
 
