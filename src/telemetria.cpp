@@ -117,7 +117,7 @@ void loopMQTT(){
 //####################################
 //Esto se corresponde con el Inversor
 //####################################
-
+// chequear que vale la pena leer de esto
 void publishTelemetryInv(const InvData& inv, const std::string& campo) {
     JsonDocument doc;
     bool campoValido = true;

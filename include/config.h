@@ -29,7 +29,7 @@
 #define DEFAULT_VERIFY_INIT_MS   60000
 
 #define DEFAULT_DC_MAX_DISCHG_CURRENT 90.0f
-#define DEFAULT_DC_MAX_CHG_CURRENT 40.0f
+#define DEFAULT_DC_MAX_CHG_CURRENT 20.0f     // modifico
 #define DEFAULT_ANTI_BACKFLOW_VALUE 1
 #define DEFAULT_SCHED_MODE_VALUE 0
 #define DEFAULT_THREE_PHASE_CTRL_MODE_VALUE 1
@@ -98,13 +98,13 @@
 
 // Aca van los valores default para los umbrales de temperatura
 #define DEFAULT_TEMP_HEAT_ENTER_C     10.0f
-#define DEFAULT_TEMP_HEAT_EXIT_C      20.0f
-#define DEFAULT_TEMP_PLATE_MAX_C      50.0f
-#define DEFAULT_TEMP_PLATE_MIN_C      35.0f  // el delta es de 15 grados como dijo el Seba
+#define DEFAULT_TEMP_HEAT_EXIT_C      20.0f   // cual es el valor de Temp min para salir de heating?
+#define DEFAULT_TEMP_PLATE_MAX_C      45.0f   // modifico
+#define DEFAULT_TEMP_PLATE_MIN_C      30.0f  // el delta es de 15 grados como dijo el Seba  // modifico
 
-#define DEFAULT_TEMP_COOL_ON_C        40.0f
-#define DEFAULT_TEMP_COOL_OFF_C       30.0f
-#define DEFAULT_TEMP_COOL_POT         55.0f
+#define DEFAULT_TEMP_COOL_ON_C        35.0f   // modifico  
+#define DEFAULT_TEMP_COOL_OFF_C       30.0f  // modifico
+#define DEFAULT_TEMP_COOL_POT         50.0f  // modifico
 #define DEFAULT_TEMP_COOL_CRITICAL_C  60.0f
 
 
@@ -126,6 +126,7 @@
 #define DEFAULT_V1 3.2f
 #define DEFAULT_V2 3.4f
 
+ // Explicar
 #define SOC_INICIO_CARGA    90.0f   // por debajo, se carga la batería desde la red
 #define SOC_FIN_CARGA       95.0f   // al llegar, se deja de cargar
 #define SOC_RESERVA         20.0f   // por debajo, no se descarga más la batería

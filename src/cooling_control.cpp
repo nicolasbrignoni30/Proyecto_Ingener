@@ -54,30 +54,32 @@ void cooling_update_threshold(const String& key, float value) {
     //Serial.println(value);
 }
 
-
-bool coolingControlUpdate(float temp_amb, void (*mandarT)(const char*, bool)) {
+bool coolingControlUpdate(float temp_amb, float temp_max, void (*mandarT)(const char*, bool)) {
     bool shut_down = false;
+
+    float temp_control = (temp_amb > temp_max) ? temp_amb : temp_max;   // este es el cambio principal
 
     switch (state) {
         case COOLING_STATE_MONITOR:
-            if (temp_amb > cooling_thresholds.cool_on_c) {
+            if (temp_control > cooling_thresholds.cool_on_c) {
                 enterCooling();
             }
             break;
 
         case COOLING_STATE_COOLING:
-            if (temp_amb < cooling_thresholds.cool_off_c){
+            if (temp_control < cooling_thresholds.cool_off_c) {
                 enterMonitor();
                 mandarT("reducir_pot_temp", false);
-            } else if (temp_amb >= cooling_thresholds.cool_off_c && temp_amb < cooling_thresholds.cool_pot_c){
+            } else if (temp_control < cooling_thresholds.cool_pot_c && temp_control >= cooling_thresholds.cool_off_c) {
                 mandarT("reducir_pot_temp", false);
-            }else if (temp_amb >= cooling_thresholds.cool_pot_c && temp_amb < cooling_thresholds.cool_critical_c){
+            } else if (temp_control < cooling_thresholds.cool_critical_c && temp_control >= cooling_thresholds.cool_pot_c ) {
                 mandarT("reducir_pot_temp", true);
-            }else if (temp_amb >= cooling_thresholds.cool_critical_c){
+            } else if (temp_control >= cooling_thresholds.cool_critical_c){
                 mandarT("reducir_pot_temp", false);
                 shut_down = true;
             }
             break;
     }
+
     return shut_down;
 }

@@ -40,7 +40,6 @@ namespace {
     }
 }
 
-
 void thermalControlInit() {
     pinMode(FAN_RELAY_PIN, OUTPUT);
     pinMode(HEATING_RELAY_PIN, OUTPUT);
@@ -127,7 +126,7 @@ bool thermalControlUpdate(unsigned long now_ms, float temp_min, float temp_max, 
             }
             break;
         }
-
+// Y el cooling control?
         case THERMAL_STATE_COOLING:
             if (temp_amb < thermal_thresholds.cool_off_c){
                 enterMonitor();
